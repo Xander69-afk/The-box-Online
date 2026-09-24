@@ -1,20 +1,4 @@
-{
-  "name": "the-box-online",
-  "version": "1.0.0",
-  "private": true,
-  "description": "THE BOX multiplayer social deduction game",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "dependencies": {
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1"
-  }
-}
+
 const path = require("path");
 const http = require("http");
 const express = require("express");
