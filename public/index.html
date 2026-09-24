@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+>
+
+<title>THE BOX</title>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<style>
+
+* {
+box-sizing: border-box;
+}
+
+body {
+
+margin: 0;
+
+font-family:
+system-ui,
+-apple-system,
+BlinkMacSystemFont,
+"Segoe UI",
+sans-serif;
+
+background: #0d1117;
+
+color: #f5f7fa;
+
+}
+
+main {
+
+max-width: 900px;
+
+margin: auto;
+
+padding: 20px;
+
+}
+
+.card {
+
+background: #161b22;
+
+border:
+1px solid #30363d;
+
+border-radius: 16px;
+
+padding: 18px;
+
+margin:
+12px 0;
+
+}
+
+.hidden {
+display: none;
+}
+
+.muted {
+color: #9da7b3;
+}
+
+.row {
+
+display: flex;
+
+gap: 10px;
+
+flex-wrap: wrap;
+
+align-items: center;
+
+}
+
+.between {
+
+display: flex;
+
+justify-content: space-between;
+
+gap: 10px;
+
+align-items: center;
+
+flex-wrap: wrap;
+
+}
+
+input {
+
+width: 100%;
+
+padding: 12px;
+
+border-radius: 10px;
+
+border:
+1px solid #3b4350;
+
+background: #0d1117;
+
+color: white;
+
+font-size: 16px;
+
+}
+
+button {
+
+font:
+inherit;
+
+border: 0;
+
+border-radius: 10px;
+
+padding: 12px 14px;
+
+cursor: pointer;
+
+background: #e8edf2;
+
+color: #101418;
+
+font-weight: 700;
+
+}
+
+button:disabled {
+
+opacity: .4;
+
+cursor: not-allowed;
+
+}
+
+.primary {
+
+background: #7dd3fc;
+
+}
+
+.danger {
+
+background: #fca5a5;
+
+}
+
+.green {
+
+background: #bbf7d0;
+
+}
+
+.grid {
+
+display: grid;
+
+grid-template-columns:
+repeat(4, 1fr);
+
+gap: 10px;
+
+}
+
+.boxbtn {
+
+min-height: 70px;
+
+background: #222a33;
+
+color: white;
+
+border:
+1px solid #46515d;
+
+}
+
+.opened {
+
+background: #26352b;
+
+}
+
+.out {
+
+background: #43292d;
+
+}
+
+.players > div {
+
+padding: 9px 0;
+
+border-bottom:
+1px solid #30363d;
+
+}
+
+.log {
+
+max-height: 200px;
+
+overflow: auto;
+
+font-size: 14px;
+
+}
+
+.money {
+
+font-size: 28px;
+
+font-weight: 900;
+
+}
+
+.pill {
+
+padding:
+5px 9px;
+
+border-radius: 999px;
+
+background: #252d36;
+
+font-size: 12px;
+
+}
+
+.power {
+
+display: flex;
+
+justify-content: space-between;
+
+gap: 8px;
+
+align-items: center;
+
+border:
+1px solid #30363d;
+
+border-radius: 12px;
+
+padding: 12px;
+
+margin:
+8px 0;
+
+}
+
+.power small {
+
+display: block;
+
+color: #9da7b3;
+
+margin-top: 3px;
+
+}
+
+@media(max-width:520px) {
+
+main {
+padding: 12px;
+}
+
+.grid {
+gap: 7px;
+}
+
+.boxbtn {
+min-height: 58px;
+padding: 8px;
+}
+
+.power {
+
+align-items:
+flex-start;
+
+flex-direction:
+column;
+
+}
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+<main>
+
+
+<div class="between">
+
+<div>
+
+<h1>THE BOX</h1>
+
+<div class="muted">
+
+Risk. Money. Deception. Survival.
+
+</div>
+
+</div>
+
+<div
+id="roomPill"
+class="pill">
+
+No room
+
+</div>
+
+</div>
+
+
+<!-- HOME -->
+
+<section
+id="home"
+class="card">
+
+<h2>Play Online</h2>
+
+<p class="muted">
+
+Create a room and send the code
+to your friends.
+
+</p>
+
+
+<label>
+
+Your name
+
+<input
+id="name"
+maxlength="18"
+placeholder="Your name"
+>
+
+</label>
+
+
+<div
+class="row"
+style="margin-top:10px">
+
+<button
+class="primary"
+id="create">
+
+Create Room
+
+</button>
+
+</div>
+
+
+<hr
+style="border-color:#30363d;margin:18px 0"
+>
+
+
+<label>
+
+Room code
+
+<input
+id="code"
+maxlength="5"
+placeholder="ABCDE"
+>
+
+</label>
+
+
+<button
+id="join"
+style="margin-top:10px">
+
+Join Room
+
+</button>
+
+
+<p
+id="homeMsg"
+class="muted">
+
+</p>
+
+</section>
+
+
+<!-- LOBBY -->
+
+<section
+id="lobby"
+class="card hidden">
+
+<div class="between">
+
+<h2>Lobby</h2>
+
+<strong
+id="codeBig">
+
+</strong>
+
+</div>
+
+
+<p>
+
+Send this room code to
+your friends:
+
+</p>
+
+
+<div
+style="
+font-size:36px;
+font-weight:900;
+letter-spacing:8px
+"
+id="codeDisplay">
+
+</div>
+
+
+<div
+id="lobbyPlayers">
+
+</div>
+
+
+<button
+id="start"
+class="primary"
+disabled>
+
+Start Game
+(need 4 players)
+
+</button>
+
+</section>
+
+
+<!-- GAME -->
+
+<section
+id="game"
+class="hidden">
+
+
+<div
+class="card between">
+
+<div>
+
+<div class="muted">
+Round
+</div>
+
+<strong
+id="round">
+1
+</strong>
+
+</div>
+
+
+<div>
+
+<div class="muted">
+Turn
+</div>
+
+<strong
+id="turn">
+—
+</strong>
+
+</div>
+
+
+<div>
+
+<div class="muted">
+Your cash
+</div>
+
+<div
+class="money"
+id="cash">
+
+$100
+
+</div>
+
+</div>
+
+</div>
+
+
+<!-- OBJECTIVE -->
+
+<div class="card">
+
+<div
+class="between">
+
+<h2>
+YOUR SECRET OBJECTIVE
+</h2>
+
+<span
+class="pill"
+id="alive">
+
+ALIVE
+
+</span>
+
+</div>
+
+
+<h3
+id="objName">
+—
+</h3>
+
+
+<p
+id="objText"
+class="muted">
+—
+</p>
+
+
+<strong
+id="objReward">
+</strong>
+
+
+<div
+style="margin-top:10px">
+
+<strong>
+Your powers:
+</strong>
+
+<span
+id="myPowers">
+None
+</span>
+
+</div>
+
+</div>
+
+
+<!-- BOXES -->
+
+<div class="card">
+
+<div
+class="between">
+
+<h2>
+THE BOXES
+</h2>
+
+<span
+class="muted">
+
+11 SAFE • 5 ELIMINATED
+
+</span>
+
+</div>
+
+
+<div
+id="boxes"
+class="grid">
+
+</div>
+
+</div>
+
+
+<!-- STORE -->
+
+<div class="card">
+
+<h2>
+POWER STORE
+</h2>
+
+<div
+id="store">
+
+</div>
+
+</div>
+
+
+<!-- PLAYERS -->
+
+<div class="card">
+
+<h2>
+PLAYERS
+</h2>
+
+<div
+id="players"
+class="players">
+
+</div>
+
+</div>
+
+
+<!-- LOG -->
+
+<div class="card">
+
+<h2>
+GAME LOG
+</h2>
+
+<div
+id="log"
+class="log">
+
+</div>
+
+</div>
+
+
+</section>
+
+
+<!-- FINISH -->
+
+<section
+id="finish"
+class="card hidden">
+
+<h2>
+GAME OVER
+</h2>
+
+
+<div
+id="winner">
+
+</div>
+
+
+<button
+id="reset"
+class="primary">
+
+Host: New Game
+
+</button>
+
+</section>
+
+
+<script>
+
+const socket = io();
+
+let state = null;
+
+
+const $ = id =>
+document.getElementById(id);
+
+
+function escapeHTML(text) {
+
+return String(text)
+.replace(
+/[&<>"']/g,
+m => ({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#039;"
+}[m])
+);
+
+}
+
+
+function playerName() {
+
+return (
+$("name")
+.value.trim() ||
+"Player"
+).slice(0,18);
+
+}
+
+
+function emit(
+event,
+data,
+callback
+) {
+
+socket.emit(
+event,
+data,
+callback
+);
+
+}
+
+
+function render() {
+
+if (!state) return;
+
+
+$("roomPill")
+.textContent =
+"ROOM " +
+state.code;
+
+
+if (
+state.status === "lobby"
+) {
+
+$("home")
+.classList.add("hidden");
+
+$("game")
+.classList.add("hidden");
+
+$("finish")
+.classList.add("hidden");
+
+$("lobby")
+.classList.remove("hidden");
+
+
+$("codeBig")
+.textContent =
+state.code;
+
+
+$("codeDisplay")
+.textContent =
+state.code;
+
+
+$("lobbyPlayers")
+.innerHTML =
+state.players
+.map(
+(player,index) => `
+
+<div
+class="between"
+style="
+padding:10px 0;
+border-bottom:
+1px solid #30363d
+">
+
+<strong>
+${escapeHTML(player.name)}
+</strong>
+
+<span class="pill">
+
+${
+index === 0
+? "Host"
+: ""
+}
+
+</span>
+
+</div>
+
+`
+)
+.join("");
+
+
+$("start").disabled =
+state.players.length < 4;
+
+return;
+
+}
+
+
+$("home")
+.classList.add("hidden");
+
+$("lobby")
+.classList.add("hidden");
+
+$("game")
+.classList.remove("hidden");
+
+
+if (
+state.status === "finished"
+) {
+
+$("game")
+.classList.add("hidden");
+
+$("finish")
+.classList.remove("hidden");
+
+
+const winner =
+state.players.find(
+player =>
+player.id ===
+state.winner
+);
+
+
+$("winner")
+.innerHTML = `
+
+<h2>
+
+🏆
+
+${
+winner
+? escapeHTML(winner.name)
+: "No survivor"
+}
+
+</h2>
+
+<p>
+
+Final cash:
+
+${
+winner
+? "$" + winner.cash
+: "—"
+}
+
+</p>
+
+`;
+
+}
+
+
+const me =
+state.me;
+
+
+$("round")
+.textContent =
+state.round;
+
+
+const turnPlayer =
+state.players[
+state.turn
+];
+
+
+$("turn")
+.textContent =
+turnPlayer
+? turnPlayer.name
+: "—";
+
+
+$("cash")
+.textContent =
+"$" + me.cash;
+
+
+$("alive")
+.textContent =
+me.alive
+? "ALIVE"
+: "ELIMINATED";
+
+
+$("objName")
+.textContent =
+me.objective
+? me.objective[0]
+: "—";
+
+
+$("objText")
+.textContent =
+me.objective
+? me.objective[1]
+: "—";
+
+
+$("objReward")
+.textContent =
+me.objective
+? "+$" +
+me.objective[2]
+: "";
+
+
+$("myPowers")
+.textContent =
+me.powers &&
+me.powers.length
+? me.powers.join(", ")
+: "None";
+
+
+$("boxes")
+.innerHTML =
+state.boxes
+.map(box => {
+
+const disabled =
+box.opened ||
+!me.alive ||
+(
+state.players[
+state.turn
+]?.id !== me.id
+);
+
+
+return `
+
+<button
+
+class="
+boxbtn
+${
+box.opened
+? (
+box.outcome ===
+"SAFE"
+? "opened"
+: "out"
+)
+: ""
+}
+"
+
+${disabled ? "disabled" : ""}
+
+onclick="
+openBox(${box.num})
+">
+
+${
+box.opened
+? (
+box.outcome ===
+"SAFE"
+? "✓ SAFE"
+: "✕ OUT"
+)
+: "#" + box.num
+}
+
+</button>
+
+`;
+
+})
+.join("");
+
+
+$("players")
+.innerHTML =
+state.players
+.map(
+player => `
+
+<div class="between">
+
+<span>
+
+<strong>
+${escapeHTML(player.name)}
+</strong>
+
+${
+player.alive
+? ""
+: "💀"
+}
+
+${
+player.protection
+? "🛡️"
+: ""
+}
+
+</span>
+
+<span>
+
+$${player.cash}
+
+</span>
+
+</div>
+
+`
+)
+.join("");
+
+
+$("log")
+.innerHTML =
+state.log
+.slice()
+.reverse()
+.map(
+message =>
+`<div>
+• ${escapeHTML(message)}
+</div>`
+)
+.join("");
+
+
+renderStore();
+
+}
+
+
+function renderStore() {
+
+const me =
+state.me;
+
+
+$("store")
+.innerHTML =
+Object.entries(
+state.store
+)
+.map(
+([name,power]) => `
+
+<div class="power">
+
+<div>
+
+<strong>
+
+${escapeHTML(name)}
+
+—
+
+$${power.cost}
+
+</strong>
+
+<small>
+
+${escapeHTML(power.desc)}
+
+</small>
+
+</div>
+
+
+<button
+
+${
+!me.alive ||
+me.cash < power.cost
+? "disabled"
+: ""
+}
+
+onclick='buyPower(
+${JSON.stringify(name)}
+)'>
+
+Buy
+
+</button>
+
+</div>
+
+`
+)
+.join("");
+
+}
+
+
+function openBox(number) {
+
+emit(
+"openBox",
+{
+num:number
+}
+);
+
+}
+
+
+function buyPower(power) {
+
+const living =
+state.players.filter(
+player =>
+player.alive &&
+player.id !==
+state.me.id
+);
+
+
+const data = {
+name:power
+};
+
+
+if (
+[
+"Protection",
+"Steal",
+"Sabotage",
+"Royal Assignment"
+]
+.includes(power)
+) {
+
+const choice =
+prompt(
+"Choose player number:\n\n" +
+living
+.map(
+(player,index) =>
+`${index + 1}. ${player.name}`
+)
+.join("\n")
+);
+
+
+const index =
+Number(choice) - 1;
+
+
+if (!living[index]) {
+return;
+}
+
+
+data.targetId =
+living[index].id;
+
+}
+
+
+else if (
+power === "Reveal" ||
+power === "Prediction"
+) {
+
+const unopened =
+state.boxes.filter(
+box => !box.opened
+);
+
+
+const choice =
+prompt(
+"Choose unopened box:\n" +
+unopened
+.map(box => box.num)
+.join(", ")
+);
+
+
+const box =
+unopened.find(
+box =>
+box.num ===
+Number(choice)
+);
+
+
+if (!box) {
+return;
+}
+
+
+data.boxA =
+Number(choice);
+
+
+if (
+power ===
+"Prediction"
+) {
+
+const guess =
+prompt(
+"Predict SAFE or ELIMINATED",
+"SAFE"
+);
+
+
+const normalized =
+(
+guess || ""
+).toUpperCase();
+
+
+if (
+normalized !==
+"SAFE" &&
+normalized !==
+"ELIMINATED"
+) {
+
+return;
+
+}
+
+
+data.guess =
+normalized;
+
+}
+
+}
+
+
+else if (
+power === "Swap"
+) {
+
+const first =
+prompt(
+"First unopened box number"
+);
+
+
+const second =
+prompt(
+"Second unopened box number"
+);
+
+
+data.boxA =
+Number(first);
+
+data.boxB =
+Number(second);
+
+}
+
+
+emit(
+"buyPower",
+data,
+result => {
+
+if (
+result &&
+!result.ok
+) {
+
+alert(result.error);
+
+}
+
+});
+
+}
+
+
+$("create").onclick =
+() => {
+
+emit(
+"createRoom",
+{
+name:playerName()
+},
+result => {
+
+if (!result.ok) {
+
+$("homeMsg")
+.textContent =
+result.error;
+
+}
+
+});
+
+};
+
+
+$("join").onclick =
+() => {
+
+emit(
+"joinRoom",
+{
+name:playerName(),
+
+code:
+$("code")
+.value
+.trim()
+.toUpperCase()
+
+},
+result => {
+
+if (!result.ok) {
+
+$("homeMsg")
+.textContent =
+result.error;
+
+}
+
+});
+
+};
+
+
+$("start").onclick =
+() => {
+
+emit(
+"startGame"
+);
+
+};
+
+
+$("reset").onclick =
+() => {
+
+emit(
+"resetRoom"
+);
+
+};
+
+
+socket.on(
+"state",
+newState => {
+
+state =
+newState;
+
+render();
+
+});
+
+
+socket.on(
+"privateInfo",
+information => {
+
+alert(
+information.text
+);
+
+});
+
+</script>
+
+
+</main>
+
+</body>
+
+</html>
