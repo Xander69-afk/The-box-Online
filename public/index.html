@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>THE BOX</title>
+
+  <script src="/socket.io/socket.io.js"></script>
 
   <style>
     * {
@@ -12,9 +18,9 @@
 
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0d0d12;
-      color: #ffffff;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #101010;
+      color: white;
     }
 
     button,
@@ -23,286 +29,368 @@
       font: inherit;
     }
 
-    button {
-      cursor: pointer;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    .screen {
-      max-width: 1100px;
+    .container {
+      width: min(1200px, 94%);
       margin: 0 auto;
-      padding: 24px;
+      padding: 20px 0 50px;
     }
 
-    h1 {
+    .title {
       text-align: center;
-      font-size: 48px;
-      margin: 20px 0 8px;
-      letter-spacing: 4px;
-    }
-
-    h2 {
-      margin-top: 0;
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: 5px;
+      margin-bottom: 5px;
     }
 
     .subtitle {
       text-align: center;
       color: #aaa;
-      margin-bottom: 35px;
+      margin-bottom: 25px;
     }
 
-    .panel {
-      background: #17171f;
-      border: 1px solid #292936;
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .card {
+      background: #191919;
+      border: 1px solid #333;
       border-radius: 14px;
-      padding: 22px;
+      padding: 20px;
       margin-bottom: 18px;
     }
 
-    .mode-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 18px;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-
-    .mode-card {
-      background: #1b1b25;
-      border: 1px solid #30303d;
-      border-radius: 16px;
-      padding: 28px;
-      text-align: center;
-    }
-
-    .mode-card h2 {
-      margin-bottom: 10px;
-    }
-
-    .mode-card p {
-      color: #aaa;
-      line-height: 1.5;
-      min-height: 48px;
-    }
-
-    .mode-card button {
-      width: 100%;
-      margin-top: 15px;
+    .menu {
+      max-width: 500px;
+      margin: 40px auto;
     }
 
     input,
     select {
       width: 100%;
-      padding: 13px;
-      border-radius: 9px;
-      border: 1px solid #3a3a48;
-      background: #0f0f15;
+      background: #101010;
+      border: 1px solid #444;
       color: white;
-      outline: none;
-    }
-
-    input:focus,
-    select:focus {
-      border-color: #7777ff;
-    }
-
-    label {
-      display: block;
-      margin: 14px 0 7px;
-      color: #ccc;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 12px;
     }
 
     button {
       border: 0;
-      border-radius: 9px;
+      border-radius: 8px;
       padding: 13px 18px;
-      background: #ffffff;
-      color: #111;
-      font-weight: bold;
+      cursor: pointer;
+      font-weight: 700;
+      margin: 4px;
     }
 
     button:hover {
       opacity: 0.88;
     }
 
-    button.secondary {
-      background: #292936;
+    .primary {
+      background: #ffffff;
+      color: #000;
+    }
+
+    .secondary {
+      background: #303030;
+      color: white;
+      border: 1px solid #555;
+    }
+
+    .danger {
+      background: #9b2226;
       color: white;
     }
 
-    button.danger {
-      background: #b83a3a;
+    .success {
+      background: #386641;
       color: white;
     }
 
-    .button-row {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+    .turn-banner {
+      text-align: center;
+      padding: 22px;
+      border-radius: 14px;
+      background: #222;
+      border: 2px solid #555;
+      margin-bottom: 18px;
     }
 
-    .center {
+    .turn-label {
+      font-size: 13px;
+      color: #999;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .turn-name {
+      font-size: 30px;
+      font-weight: 900;
+    }
+
+    .your-turn {
+      border-color: #fff;
+      background: #252525;
+    }
+
+    .your-turn .turn-name {
+      font-size: 36px;
+    }
+
+    .game-info {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .stat {
+      background: #191919;
+      border: 1px solid #333;
+      padding: 14px;
+      border-radius: 10px;
       text-align: center;
     }
 
-    .room-code {
-      font-size: 40px;
-      font-weight: bold;
-      letter-spacing: 8px;
-      margin: 15px 0;
+    .stat-label {
+      font-size: 12px;
+      color: #999;
+      text-transform: uppercase;
     }
 
-    .players {
+    .stat-value {
+      font-size: 25px;
+      font-weight: 900;
+      margin-top: 4px;
+    }
+
+    .layout {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 10px;
-    }
-
-    .player {
-      padding: 12px;
-      border-radius: 10px;
-      background: #22222d;
-      border: 1px solid #30303d;
-    }
-
-    .player.dead {
-      opacity: 0.4;
-      text-decoration: line-through;
-    }
-
-    .npc-tag {
-      font-size: 11px;
-      color: #aaa;
-      margin-left: 5px;
-    }
-
-    .game-grid {
-      display: grid;
-      grid-template-columns: 1.5fr 1fr;
+      grid-template-columns: 1fr 330px;
       gap: 18px;
     }
 
     .boxes {
       display: grid;
-      grid-template-columns: repeat(4, minmax(60px, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
     }
 
     .box {
       aspect-ratio: 1;
-      border-radius: 12px;
-      border: 2px solid #393946;
-      background: #20202a;
+      background: #252525;
+      border: 2px solid #555;
       color: white;
-      font-size: 22px;
-      font-weight: bold;
+      border-radius: 12px;
+      font-size: 25px;
+      font-weight: 900;
+      cursor: pointer;
     }
 
-    .box:hover:not(:disabled) {
+    .box:hover {
       border-color: white;
+      transform: translateY(-2px);
+    }
+
+    .box.opened {
+      cursor: default;
+      transform: none;
     }
 
     .box.safe {
-      background: #173b26;
-      border-color: #2d824d;
+      background: #1d4d2b;
+      border-color: #4c9a62;
     }
 
     .box.eliminated {
-      background: #4a1919;
-      border-color: #9e3838;
+      background: #641c1c;
+      border-color: #a94444;
     }
 
-    .box:disabled {
-      cursor: default;
+    .box.golden {
+      box-shadow: 0 0 0 3px #d4af37;
+    }
+
+    .players {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .player {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #222;
+      border: 1px solid #383838;
+      border-radius: 9px;
+      padding: 11px;
+    }
+
+    .player.active {
+      border: 2px solid white;
+      background: #2b2b2b;
+    }
+
+    .player.dead {
+      opacity: 0.45;
+    }
+
+    .player-name {
+      font-weight: 800;
+    }
+
+    .player-meta {
+      font-size: 12px;
+      color: #999;
+      margin-top: 3px;
     }
 
     .cash {
-      font-size: 30px;
-      font-weight: bold;
-      margin: 8px 0 20px;
+      font-weight: 900;
+      color: #ddd;
     }
 
-    .objective {
-      background: #20202a;
-      border-radius: 10px;
-      padding: 15px;
-      line-height: 1.5;
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 900;
+      padding: 3px 6px;
+      border-radius: 4px;
+      background: #444;
+      margin-left: 5px;
     }
 
-    .store {
-      display: grid;
-      gap: 9px;
+    .turn-badge {
+      background: white;
+      color: black;
     }
 
-    .power {
-      background: #20202a;
-      border: 1px solid #30303d;
-      border-radius: 10px;
-      padding: 12px;
-    }
-
-    .power button {
-      margin-top: 8px;
-      width: 100%;
+    .dead-badge {
+      background: #702020;
+      color: white;
     }
 
     .log {
-      max-height: 280px;
+      max-height: 300px;
       overflow-y: auto;
-      background: #0f0f15;
-      border-radius: 10px;
+      background: #101010;
+      border-radius: 8px;
       padding: 12px;
-    }
-
-    .log-entry {
-      padding: 7px 0;
-      border-bottom: 1px solid #22222c;
-      color: #ccc;
-      font-size: 14px;
-    }
-
-    .status {
-      text-align: center;
-      font-weight: bold;
-      padding: 10px;
-      border-radius: 9px;
-      background: #22222d;
-      margin-bottom: 15px;
-    }
-
-    .error {
-      background: #4b1d1d;
-      color: #ffbaba;
-      padding: 12px;
-      border-radius: 9px;
-      margin: 12px 0;
-    }
-
-    .solo-info {
-      color: #bbb;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.5;
     }
 
-    @media (max-width: 750px) {
-      h1 {
-        font-size: 38px;
-      }
+    .log-entry {
+      padding: 5px 0;
+      border-bottom: 1px solid #252525;
+    }
 
-      .mode-grid,
-      .game-grid {
+    .objective {
+      border-left: 3px solid white;
+      padding-left: 12px;
+    }
+
+    .objective-name {
+      font-size: 19px;
+      font-weight: 900;
+      margin-bottom: 5px;
+    }
+
+    .objective-text {
+      color: #bbb;
+      line-height: 1.4;
+    }
+
+    .power-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .power-button {
+      background: #292929;
+      color: white;
+      border: 1px solid #444;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .power-button small {
+      display: block;
+      color: #aaa;
+      margin-top: 3px;
+    }
+
+    .game-over {
+      text-align: center;
+      padding: 30px;
+    }
+
+    .game-over h2 {
+      font-size: 38px;
+      margin-bottom: 10px;
+    }
+
+    .play-again {
+      font-size: 18px;
+      padding: 16px 30px;
+      background: white;
+      color: black;
+    }
+
+    .room-code {
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: 5px;
+      text-align: center;
+      margin: 15px 0;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 800px) {
+      .layout {
         grid-template-columns: 1fr;
       }
 
-      .screen {
-        padding: 14px;
+      .game-info {
+        grid-template-columns: repeat(3, 1fr);
       }
 
       .boxes {
         grid-template-columns: repeat(4, 1fr);
+        gap: 7px;
+      }
+
+      .box {
+        font-size: 18px;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .title {
+        font-size: 32px;
+      }
+
+      .turn-name {
+        font-size: 24px;
+      }
+
+      .your-turn .turn-name {
+        font-size: 28px;
       }
     }
   </style>
@@ -310,230 +398,262 @@
 
 <body>
 
-<div id="homeScreen" class="screen">
+<div class="container">
 
-  <h1>THE BOX</h1>
-
+  <div class="title">THE BOX</div>
   <div class="subtitle">
     Trust. Risk. Deception. Survival.
   </div>
 
-  <div id="errorBox" class="error hidden"></div>
+  <!-- ================= MENU ================= -->
 
-  <div class="mode-grid">
+  <div id="menuScreen" class="screen active">
 
-    <div class="mode-card">
-      <h2>🌐 ONLINE</h2>
+    <div class="card menu">
 
-      <p>
-        Play with real people using a private room code.
-        4–16 players.
-      </p>
+      <h2>Play THE BOX</h2>
 
-      <button id="onlineButton">
-        PLAY ONLINE
-      </button>
-    </div>
+      <input
+        id="nameInput"
+        type="text"
+        placeholder="Your name"
+        maxlength="20"
+      >
 
-    <div class="mode-card">
-      <h2>🤖 SOLO TEST</h2>
-
-      <p>
-        Play by yourself against NPCs.
-        Perfect for testing THE BOX.
-      </p>
-
-      <button id="soloButton">
-        TEST SOLO
-      </button>
-    </div>
-
-  </div>
-
-</div>
-
-
-<div id="onlineScreen" class="screen hidden">
-
-  <div class="panel">
-
-    <h2>Online Game</h2>
-
-    <label>Your Name</label>
-    <input id="onlineName" placeholder="Enter your name">
-
-    <div class="button-row" style="margin-top:15px;">
-      <button id="createRoomButton">
-        Create Room
+      <button
+        id="soloButton"
+        class="primary"
+        style="width:100%;"
+      >
+        SOLO TEST
       </button>
 
-      <button id="showJoinButton" class="secondary">
-        Join Room
+      <select id="npcCount">
+        <option value="3">4 Players — You + 3 NPCs</option>
+        <option value="7">8 Players — You + 7 NPCs</option>
+        <option value="11">12 Players — You + 11 NPCs</option>
+        <option value="15">16 Players — You + 15 NPCs</option>
+      </select>
+
+      <hr style="border-color:#333;margin:20px 0;">
+
+      <button
+        id="createButton"
+        class="secondary"
+        style="width:100%;"
+      >
+        CREATE ONLINE ROOM
       </button>
-
-      <button id="backHomeButton" class="secondary">
-        Back
-      </button>
-    </div>
-
-    <div id="joinArea" class="hidden">
-
-      <label>Room Code</label>
 
       <input
         id="roomCodeInput"
+        type="text"
+        placeholder="Room code"
         maxlength="5"
-        placeholder="ABCDE"
+        style="margin-top:10px;"
       >
 
-      <button id="joinRoomButton" style="margin-top:10px;">
-        Join
+      <button
+        id="joinButton"
+        class="secondary"
+        style="width:100%;"
+      >
+        JOIN ONLINE ROOM
       </button>
 
     </div>
 
   </div>
 
-</div>
+  <!-- ================= LOBBY ================= -->
 
+  <div id="lobbyScreen" class="screen">
 
-<div id="soloSetupScreen" class="screen hidden">
+    <div class="card">
 
-  <div class="panel">
+      <h2>Waiting Room</h2>
 
-    <h2>🤖 Solo Test Mode</h2>
+      <div class="room-code" id="roomCodeDisplay">
+        -----
+      </div>
 
-    <p class="solo-info">
-      You will play as the human player while the remaining
-      players are controlled by NPCs.
-    </p>
+      <p style="text-align:center;color:#aaa;">
+        Share this room code with your friends.
+      </p>
 
-    <label>Your Name</label>
+      <div id="lobbyPlayers"></div>
 
-    <input
-      id="soloName"
-      placeholder="Enter your name"
+      <div style="text-align:center;margin-top:20px;">
+
+        <button
+          id="startButton"
+          class="primary"
+        >
+          START GAME
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ================= GAME ================= -->
+
+  <div id="gameScreen" class="screen">
+
+    <div
+      id="turnBanner"
+      class="turn-banner"
     >
-
-    <label>Number of Players</label>
-
-    <select id="npcCount">
-      <option value="3">4 Players — You + 3 NPCs</option>
-      <option value="7">8 Players — You + 7 NPCs</option>
-      <option value="11">12 Players — You + 11 NPCs</option>
-      <option value="15">16 Players — You + 15 NPCs</option>
-    </select>
-
-    <div class="button-row" style="margin-top:18px;">
-
-      <button id="startSoloButton">
-        START SOLO TEST
-      </button>
-
-      <button id="backSoloButton" class="secondary">
-        Back
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-
-<div id="lobbyScreen" class="screen hidden">
-
-  <div class="panel center">
-
-    <h2>Game Lobby</h2>
-
-    <div>Room Code</div>
-
-    <div id="roomCode" class="room-code">
-      -----
-    </div>
-
-    <p>
-      Give this code to your friends.
-    </p>
-
-    <button id="startOnlineGameButton">
-      START GAME
-    </button>
-
-    <button id="leaveLobbyButton" class="secondary">
-      Leave
-    </button>
-
-  </div>
-
-  <div class="panel">
-
-    <h2>Players</h2>
-
-    <div id="lobbyPlayers" class="players"></div>
-
-  </div>
-
-</div>
-
-
-<div id="gameScreen" class="screen hidden">
-
-  <div id="gameStatus" class="status">
-    Game in progress
-  </div>
-
-  <div class="game-grid">
-
-    <div>
-
-      <div class="panel">
-
-        <h2>Boxes</h2>
-
-        <div id="boxes" class="boxes"></div>
-
+      <div class="turn-label">
+        Current Turn
       </div>
 
-      <div class="panel">
-
-        <h2>Players</h2>
-
-        <div id="players" class="players"></div>
-
+      <div
+        id="turnName"
+        class="turn-name"
+      >
+        Waiting...
       </div>
-
-      <div class="panel">
-
-        <h2>Game Log</h2>
-
-        <div id="log" class="log"></div>
-
-      </div>
-
     </div>
 
+    <div class="game-info">
 
-    <div>
-
-      <div class="panel">
-
-        <h2>Your Status</h2>
-
-        <div id="cash" class="cash">
-          $100
+      <div class="stat">
+        <div class="stat-label">
+          Players Alive
         </div>
 
-        <div id="objective" class="objective"></div>
+        <div
+          id="aliveCount"
+          class="stat-value"
+        >
+          -
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Boxes Remaining
+        </div>
+
+        <div
+          id="boxesRemaining"
+          class="stat-value"
+        >
+          -
+        </div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-label">
+          Your Cash
+        </div>
+
+        <div
+          id="cashDisplay"
+          class="stat-value"
+        >
+          $0
+        </div>
+      </div>
+
+    </div>
+
+    <div class="layout">
+
+      <!-- MAIN -->
+
+      <div>
+
+        <div class="card">
+
+          <h2>Choose a Box</h2>
+
+          <p
+            id="boxInstruction"
+            style="color:#aaa;"
+          >
+            Waiting for your turn...
+          </p>
+
+          <div
+            id="boxes"
+            class="boxes"
+          ></div>
+
+        </div>
+
+        <div
+          id="gameOverCard"
+          class="card game-over hidden"
+        >
+
+          <h2>GAME OVER</h2>
+
+          <p id="gameOverText"></p>
+
+          <button
+            id="playAgainButton"
+            class="play-again"
+          >
+            PLAY AGAIN
+          </button>
+
+        </div>
+
+        <div class="card">
+
+          <h2>Game Log</h2>
+
+          <div
+            id="gameLog"
+            class="log"
+          ></div>
+
+        </div>
 
       </div>
 
-      <div class="panel">
+      <!-- SIDEBAR -->
 
-        <h2>Power Store</h2>
+      <div>
 
-        <div id="store" class="store"></div>
+        <div class="card">
+
+          <h2>Players</h2>
+
+          <div
+            id="players"
+            class="players"
+          ></div>
+
+        </div>
+
+        <div class="card">
+
+          <h2>Your Objective</h2>
+
+          <div
+            id="objective"
+            class="objective"
+          >
+            Waiting...
+          </div>
+
+        </div>
+
+        <div class="card">
+
+          <h2>Power Store</h2>
+
+          <div
+            id="powerGrid"
+            class="power-grid"
+          ></div>
+
+        </div>
 
       </div>
 
@@ -542,9 +662,6 @@
   </div>
 
 </div>
-
-
-<script src="/socket.io/socket.io.js"></script>
 
 <script>
 
@@ -552,403 +669,719 @@ const socket = io();
 
 let currentState = null;
 
-const homeScreen = document.getElementById("homeScreen");
-const onlineScreen = document.getElementById("onlineScreen");
-const soloSetupScreen = document.getElementById("soloSetupScreen");
-const lobbyScreen = document.getElementById("lobbyScreen");
-const gameScreen = document.getElementById("gameScreen");
+const POWER_NAMES = [
+  "Protection",
+  "Reveal",
+  "Second Chance",
+  "Steal",
+  "Swap",
+  "Prediction",
+  "Sabotage",
+  "Royal Assignment"
+];
 
-const errorBox = document.getElementById("errorBox");
+const POWER_COST = 60;
+
+const menuScreen =
+  document.getElementById("menuScreen");
+
+const lobbyScreen =
+  document.getElementById("lobbyScreen");
+
+const gameScreen =
+  document.getElementById("gameScreen");
+
+const nameInput =
+  document.getElementById("nameInput");
+
+const npcCount =
+  document.getElementById("npcCount");
+
+const roomCodeInput =
+  document.getElementById("roomCodeInput");
+
+const soloButton =
+  document.getElementById("soloButton");
+
+const createButton =
+  document.getElementById("createButton");
+
+const joinButton =
+  document.getElementById("joinButton");
+
+const startButton =
+  document.getElementById("startButton");
+
+const playAgainButton =
+  document.getElementById("playAgainButton");
 
 function showScreen(screen) {
-  [
-    homeScreen,
-    onlineScreen,
-    soloSetupScreen,
-    lobbyScreen,
-    gameScreen
-  ].forEach(element => {
-    element.classList.add("hidden");
-  });
 
-  screen.classList.remove("hidden");
+  menuScreen.classList.remove("active");
 
-  errorBox.classList.add("hidden");
+  lobbyScreen.classList.remove("active");
+
+  gameScreen.classList.remove("active");
+
+  screen.classList.add("active");
 }
 
-function showError(message) {
-  errorBox.textContent = message;
-  errorBox.classList.remove("hidden");
-}
+function getPlayer() {
 
-document.getElementById("onlineButton").addEventListener("click", () => {
-  showScreen(onlineScreen);
-});
-
-document.getElementById("soloButton").addEventListener("click", () => {
-  showScreen(soloSetupScreen);
-});
-
-document.getElementById("backHomeButton").addEventListener("click", () => {
-  showScreen(homeScreen);
-});
-
-document.getElementById("backSoloButton").addEventListener("click", () => {
-  showScreen(homeScreen);
-});
-
-document.getElementById("showJoinButton").addEventListener("click", () => {
-  document.getElementById("joinArea").classList.toggle("hidden");
-});
-
-document.getElementById("createRoomButton").addEventListener("click", () => {
-
-  const name = document.getElementById("onlineName").value.trim();
-
-  if (!name) {
-    showError("Please enter your name.");
-    return;
+  if (!currentState) {
+    return null;
   }
 
-  socket.emit("createRoom", { name });
-
-});
-
-document.getElementById("joinRoomButton").addEventListener("click", () => {
-
-  const name = document.getElementById("onlineName").value.trim();
-  const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
-
-  if (!name) {
-    showError("Please enter your name.");
-    return;
-  }
-
-  if (code.length !== 5) {
-    showError("Room codes are 5 characters.");
-    return;
-  }
-
-  socket.emit("joinRoom", {
-    name,
-    code
-  });
-
-});
-
-document.getElementById("startSoloButton").addEventListener("click", () => {
-
-  const name = document.getElementById("soloName").value.trim();
-  const npcCount = Number(
-    document.getElementById("npcCount").value
+  return currentState.players.find(
+    function (player) {
+      return (
+        player.id ===
+        currentState.you.id
+      );
+    }
   );
-
-  if (!name) {
-    showError("Please enter your name.");
-    return;
-  }
-
-  socket.emit("createSolo", {
-    name,
-    npcCount
-  });
-
-});
-
-document.getElementById("startOnlineGameButton").addEventListener("click", () => {
-  socket.emit("startGame");
-});
-
-document.getElementById("leaveLobbyButton").addEventListener("click", () => {
-  location.reload();
-});
-
-socket.on("errorMessage", message => {
-  showError(message);
-});
-
-socket.on("state", state => {
-
-  currentState = state;
-
-  if (state.started) {
-    showScreen(gameScreen);
-    renderGame(state);
-  } else {
-    showScreen(lobbyScreen);
-    renderLobby(state);
-  }
-
-});
-
-function renderLobby(state) {
-
-  document.getElementById("roomCode").textContent =
-    state.code;
-
-  const container =
-    document.getElementById("lobbyPlayers");
-
-  container.innerHTML = "";
-
-  state.players.forEach(player => {
-
-    const div = document.createElement("div");
-
-    div.className = "player";
-
-    div.innerHTML =
-      `<strong>${escapeHtml(player.name)}</strong>` +
-      (player.isNPC
-        ? `<span class="npc-tag">NPC</span>`
-        : "");
-
-    container.appendChild(div);
-
-  });
-
-  const startButton =
-    document.getElementById("startOnlineGameButton");
-
-  startButton.classList.toggle(
-    "hidden",
-    state.players.length < 4
-  );
-
 }
 
-function renderGame(state) {
+/* ================= SOLO ================= */
 
-  const you = state.you;
+soloButton.addEventListener(
+  "click",
+  function () {
 
-  if (!you) return;
+    const name =
+      nameInput.value.trim();
 
-  document.getElementById("cash").textContent =
-    `$${you.cash}`;
+    if (!name) {
+      alert("Enter your name first.");
+      return;
+    }
 
-  const objective =
-    document.getElementById("objective");
-
-  objective.innerHTML = `
-    <strong>${escapeHtml(you.objective.name)}</strong>
-    <br><br>
-    ${escapeHtml(you.objective.text)}
-    <br><br>
-    Reward: <strong>$${you.objective.reward}</strong>
-  `;
-
-  renderBoxes(state);
-  renderPlayers(state);
-  renderStore(you);
-  renderLog(state);
-
-  const status =
-    document.getElementById("gameStatus");
-
-  if (state.finished) {
-
-    status.textContent =
-      "🏆 GAME OVER";
-
-  } else if (!you.alive) {
-
-    status.textContent =
-      "💀 YOU HAVE BEEN ELIMINATED";
-
-  } else {
-
-    status.textContent =
-      state.mode === "solo"
-        ? "🤖 SOLO TEST — Your turn"
-        : "🎮 GAME IN PROGRESS";
-
-  }
-
-}
-
-function renderBoxes(state) {
-
-  const container =
-    document.getElementById("boxes");
-
-  container.innerHTML = "";
-
-  state.boxes.forEach(box => {
-
-    const button =
-      document.createElement("button");
-
-    button.className = "box";
-
-    button.textContent = box.number;
-
-    if (box.opened) {
-
-      button.disabled = true;
-
-      if (box.result === "SAFE") {
-        button.classList.add("safe");
-      } else {
-        button.classList.add("eliminated");
+    socket.emit(
+      "createSolo",
+      {
+        name: name,
+        npcCount:
+          Number(npcCount.value)
       }
+    );
+  }
+);
+
+/* ================= CREATE ================= */
+
+createButton.addEventListener(
+  "click",
+  function () {
+
+    const name =
+      nameInput.value.trim();
+
+    if (!name) {
+      alert("Enter your name first.");
+      return;
+    }
+
+    socket.emit(
+      "createRoom",
+      {
+        name: name
+      }
+    );
+  }
+);
+
+/* ================= JOIN ================= */
+
+joinButton.addEventListener(
+  "click",
+  function () {
+
+    const name =
+      nameInput.value.trim();
+
+    const code =
+      roomCodeInput.value
+        .trim()
+        .toUpperCase();
+
+    if (!name) {
+      alert("Enter your name first.");
+      return;
+    }
+
+    if (!code) {
+      alert("Enter a room code.");
+      return;
+    }
+
+    socket.emit(
+      "joinRoom",
+      {
+        name: name,
+        code: code
+      }
+    );
+  }
+);
+
+/* ================= START ================= */
+
+startButton.addEventListener(
+  "click",
+  function () {
+    socket.emit("startGame");
+  }
+);
+
+/* ================= PLAY AGAIN ================= */
+
+playAgainButton.addEventListener(
+  "click",
+  function () {
+    socket.emit("playAgain");
+  }
+);
+
+/* ================= ERROR ================= */
+
+socket.on(
+  "errorMessage",
+  function (message) {
+    alert(message);
+  }
+);
+
+/* ================= STATE ================= */
+
+socket.on(
+  "state",
+  function (state) {
+
+    currentState = state;
+
+    if (!state.started) {
+
+      showScreen(lobbyScreen);
+
+      renderLobby();
+
+      return;
+    }
+
+    showScreen(gameScreen);
+
+    renderGame();
+  }
+);
+
+/* ================= LOBBY ================= */
+
+function renderLobby() {
+
+  document.getElementById(
+    "roomCodeDisplay"
+  ).textContent =
+    currentState.code;
+
+  const container =
+    document.getElementById(
+      "lobbyPlayers"
+    );
+
+  container.innerHTML = "";
+
+  currentState.players.forEach(
+    function (player) {
+
+      const div =
+        document.createElement("div");
+
+      div.className = "player";
+
+      div.innerHTML =
+        "<div>" +
+          "<div class='player-name'>" +
+            escapeHtml(player.name) +
+          "</div>" +
+          "<div class='player-meta'>" +
+            (player.id ===
+            currentState.players[0].id
+              ? "Host"
+              : "Player") +
+          "</div>" +
+        "</div>";
+
+      container.appendChild(div);
+    }
+  );
+}
+
+/* ================= GAME ================= */
+
+function renderGame() {
+
+  renderTurn();
+
+  renderStats();
+
+  renderBoxes();
+
+  renderPlayers();
+
+  renderObjective();
+
+  renderPowers();
+
+  renderLog();
+
+  renderGameOver();
+}
+
+/* ================= TURN ================= */
+
+function renderTurn() {
+
+  const turnPlayer =
+    currentState.players.find(
+      function (player) {
+        return (
+          player.id ===
+          currentState.currentTurn
+        );
+      }
+    );
+
+  const banner =
+    document.getElementById(
+      "turnBanner"
+    );
+
+  const name =
+    document.getElementById(
+      "turnName"
+    );
+
+  const instruction =
+    document.getElementById(
+      "boxInstruction"
+    );
+
+  if (!turnPlayer) {
+
+    name.textContent =
+      "Waiting...";
+
+    return;
+  }
+
+  if (
+    turnPlayer.id ===
+    currentState.you.id
+  ) {
+
+    banner.classList.add(
+      "your-turn"
+    );
+
+    name.textContent =
+      "🟢 YOUR TURN";
+
+    instruction.textContent =
+      currentState.you.alive
+        ? "Choose an unopened box."
+        : "You have been eliminated.";
+
+  } else {
+
+    banner.classList.remove(
+      "your-turn"
+    );
+
+    name.textContent =
+      "⏳ " +
+      turnPlayer.name +
+      "'s turn";
+
+    instruction.textContent =
+      turnPlayer.name +
+      " is choosing a box...";
+  }
+}
+
+/* ================= STATS ================= */
+
+function renderStats() {
+
+  document.getElementById(
+    "aliveCount"
+  ).textContent =
+    currentState.alivePlayers;
+
+  document.getElementById(
+    "boxesRemaining"
+  ).textContent =
+    currentState.boxesRemaining;
+
+  document.getElementById(
+    "cashDisplay"
+  ).textContent =
+    "$" +
+    currentState.you.cash;
+}
+
+/* ================= BOXES ================= */
+
+function renderBoxes() {
+
+  const container =
+    document.getElementById(
+      "boxes"
+    );
+
+  container.innerHTML = "";
+
+  const myTurn =
+    currentState.currentTurn ===
+    currentState.you.id;
+
+  currentState.boxes.forEach(
+    function (box) {
+
+      const button =
+        document.createElement("button");
+
+      button.className =
+        "box";
 
       button.textContent =
-        `${box.number}\n${box.result}`;
+        box.number;
 
-    } else {
+      if (box.opened) {
 
-      button.addEventListener("click", () => {
+        button.classList.add(
+          "opened"
+        );
 
-        if (!currentState.you.alive) return;
+        if (
+          box.result === "SAFE"
+        ) {
+          button.classList.add(
+            "safe"
+          );
 
-        socket.emit("openBox", {
-          boxNumber: box.number
-        });
+          button.textContent =
+            "✓";
+        } else {
 
-      });
+          button.classList.add(
+            "eliminated"
+          );
 
+          button.textContent =
+            "✕";
+        }
+
+      } else {
+
+        button.disabled =
+          !myTurn ||
+          !currentState.you.alive;
+
+        button.addEventListener(
+          "click",
+          function () {
+
+            socket.emit(
+              "openBox",
+              {
+                boxNumber:
+                  box.number
+              }
+            );
+          }
+        );
+      }
+
+      if (box.isGolden) {
+        button.classList.add(
+          "golden"
+        );
+      }
+
+      container.appendChild(
+        button
+      );
     }
-
-    container.appendChild(button);
-
-  });
-
+  );
 }
 
-function renderPlayers(state) {
+/* ================= PLAYERS ================= */
+
+function renderPlayers() {
 
   const container =
-    document.getElementById("players");
+    document.getElementById(
+      "players"
+    );
 
   container.innerHTML = "";
 
-  state.players.forEach(player => {
+  currentState.players.forEach(
+    function (player, index) {
 
-    const div =
-      document.createElement("div");
+      const div =
+        document.createElement("div");
 
-    div.className =
-      "player" + (!player.alive ? " dead" : "");
+      div.className =
+        "player";
 
-    div.innerHTML = `
-      <strong>${escapeHtml(player.name)}</strong>
-      ${player.isNPC
-        ? `<span class="npc-tag">NPC</span>`
-        : ""}
-      <br>
-      $${player.cash}
-      <br>
-      ${player.alive ? "ALIVE" : "ELIMINATED"}
-    `;
+      if (
+        player.id ===
+        currentState.currentTurn
+      ) {
+        div.classList.add(
+          "active"
+        );
+      }
 
-    container.appendChild(div);
+      if (!player.alive) {
+        div.classList.add(
+          "dead"
+        );
+      }
 
-  });
+      let badges = "";
 
-}
+      if (
+        player.id ===
+        currentState.currentTurn
+      ) {
+        badges +=
+          "<span class='badge turn-badge'>" +
+          "TURN" +
+          "</span>";
+      }
 
-function renderStore(you) {
+      if (
+        player.id ===
+        currentState.you.id
+      ) {
+        badges +=
+          "<span class='badge'>" +
+          "YOU" +
+          "</span>";
+      }
 
-  const container =
-    document.getElementById("store");
+      if (!player.alive) {
+        badges +=
+          "<span class='badge dead-badge'>" +
+          "OUT" +
+          "</span>";
+      }
 
-  container.innerHTML = "";
+      const type =
+        player.isNPC
+          ? player.personality || "NPC"
+          : "Human";
 
-  const powers = [
-    {
-      name: "Protection",
-      description: "Protect another player from elimination."
-    },
-    {
-      name: "Reveal",
-      description: "Reveal a box's result."
-    },
-    {
-      name: "Second Chance",
-      description: "Survive one elimination."
-    },
-    {
-      name: "Steal",
-      description: "Steal $50 from another player."
-    },
-    {
-      name: "Swap",
-      description: "Swap your chosen box."
-    },
-    {
-      name: "Prediction",
-      description: "Predict whether a box is safe."
-    },
-    {
-      name: "Sabotage",
-      description: "Cause another player to lose $50."
-    },
-    {
-      name: "Royal Assignment",
-      description: "Choose who opens the next box."
+      div.innerHTML =
+        "<div>" +
+
+          "<div class='player-name'>" +
+            (index + 1) +
+            ". " +
+            escapeHtml(player.name) +
+            badges +
+          "</div>" +
+
+          "<div class='player-meta'>" +
+            escapeHtml(type) +
+          "</div>" +
+
+        "</div>" +
+
+        "<div class='cash'>" +
+          "$" +
+          player.cash +
+        "</div>";
+
+      container.appendChild(
+        div
+      );
     }
-  ];
-
-  powers.forEach(power => {
-
-    const div =
-      document.createElement("div");
-
-    div.className = "power";
-
-    div.innerHTML = `
-      <strong>${power.name}</strong>
-      <br>
-      <small>${power.description}</small>
-      <br>
-      <button>Buy for $60</button>
-    `;
-
-    div.querySelector("button").addEventListener("click", () => {
-
-      socket.emit("buyPower", {
-        power: power.name
-      });
-
-    });
-
-    container.appendChild(div);
-
-  });
-
+  );
 }
 
-function renderLog(state) {
+/* ================= OBJECTIVE ================= */
+
+function renderObjective() {
+
+  const objective =
+    currentState.you.objective;
+
+  document.getElementById(
+    "objective"
+  ).innerHTML =
+
+    "<div class='objective-name'>" +
+      escapeHtml(objective.name) +
+    "</div>" +
+
+    "<div class='objective-text'>" +
+      escapeHtml(objective.text) +
+    "</div>" +
+
+    "<div style='margin-top:10px;font-weight:bold;'>" +
+      "Reward: $" +
+      objective.reward +
+    "</div>";
+}
+
+/* ================= POWERS ================= */
+
+function renderPowers() {
 
   const container =
-    document.getElementById("log");
+    document.getElementById(
+      "powerGrid"
+    );
 
   container.innerHTML = "";
 
-  [...state.log].reverse().forEach(message => {
+  POWER_NAMES.forEach(
+    function (power) {
 
-    const div =
-      document.createElement("div");
+      const button =
+        document.createElement("button");
 
-    div.className = "log-entry";
+      button.className =
+        "power-button";
 
-    div.textContent = message;
+      button.innerHTML =
+        "<strong>" +
+          escapeHtml(power) +
+        "</strong>" +
+        "<small>$60</small>";
 
-    container.appendChild(div);
+      button.disabled =
+        currentState.you.cash <
+        POWER_COST;
 
-  });
+      button.addEventListener(
+        "click",
+        function () {
 
+          socket.emit(
+            "buyPower",
+            {
+              power: power
+            }
+          );
+        }
+      );
+
+      container.appendChild(
+        button
+      );
+    }
+  );
 }
+
+/* ================= LOG ================= */
+
+function renderLog() {
+
+  const container =
+    document.getElementById(
+      "gameLog"
+    );
+
+  container.innerHTML = "";
+
+  currentState.log
+    .slice()
+    .reverse()
+    .forEach(
+      function (message) {
+
+        const div =
+          document.createElement(
+            "div"
+          );
+
+        div.className =
+          "log-entry";
+
+        div.textContent =
+          message;
+
+        container.appendChild(
+          div
+        );
+      }
+    );
+}
+
+/* ================= GAME OVER ================= */
+
+function renderGameOver() {
+
+  const card =
+    document.getElementById(
+      "gameOverCard"
+    );
+
+  if (!currentState.finished) {
+
+    card.classList.add(
+      "hidden"
+    );
+
+    return;
+  }
+
+  card.classList.remove(
+    "hidden"
+  );
+
+  const survivors =
+    currentState.players.filter(
+      function (player) {
+        return player.alive;
+      }
+    );
+
+  let text;
+
+  if (survivors.length === 1) {
+
+    text =
+      survivors[0].name +
+      " is the final survivor!";
+
+  } else {
+
+    text =
+      survivors.length +
+      " players survived.";
+  }
+
+  document.getElementById(
+    "gameOverText"
+  ).textContent =
+    text;
+}
+
+/* ================= SECURITY ================= */
 
 function escapeHtml(value) {
 
   return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 </script>
