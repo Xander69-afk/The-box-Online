@@ -1,1424 +1,957 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
-<meta charset="UTF-8">
-
-<meta
-name="viewport"
-content="width=device-width, initial-scale=1.0"
->
-
-<title>THE BOX</title>
-
-<script src="/socket.io/socket.io.js"></script>
-
-<style>
-
-* {
-box-sizing: border-box;
-}
-
-body {
-
-margin: 0;
-
-font-family:
-system-ui,
--apple-system,
-BlinkMacSystemFont,
-"Segoe UI",
-sans-serif;
-
-background: #0d1117;
-
-color: #f5f7fa;
-
-}
-
-main {
-
-max-width: 900px;
-
-margin: auto;
-
-padding: 20px;
-
-}
-
-.card {
-
-background: #161b22;
-
-border:
-1px solid #30363d;
-
-border-radius: 16px;
-
-padding: 18px;
-
-margin:
-12px 0;
-
-}
-
-.hidden {
-display: none;
-}
-
-.muted {
-color: #9da7b3;
-}
-
-.row {
-
-display: flex;
-
-gap: 10px;
-
-flex-wrap: wrap;
-
-align-items: center;
-
-}
-
-.between {
-
-display: flex;
-
-justify-content: space-between;
-
-gap: 10px;
-
-align-items: center;
-
-flex-wrap: wrap;
-
-}
-
-input {
-
-width: 100%;
-
-padding: 12px;
-
-border-radius: 10px;
-
-border:
-1px solid #3b4350;
-
-background: #0d1117;
-
-color: white;
-
-font-size: 16px;
-
-}
-
-button {
-
-font:
-inherit;
-
-border: 0;
-
-border-radius: 10px;
-
-padding: 12px 14px;
-
-cursor: pointer;
-
-background: #e8edf2;
-
-color: #101418;
-
-font-weight: 700;
-
-}
-
-button:disabled {
-
-opacity: .4;
-
-cursor: not-allowed;
-
-}
-
-.primary {
-
-background: #7dd3fc;
-
-}
-
-.danger {
-
-background: #fca5a5;
-
-}
-
-.green {
-
-background: #bbf7d0;
-
-}
-
-.grid {
-
-display: grid;
-
-grid-template-columns:
-repeat(4, 1fr);
-
-gap: 10px;
-
-}
-
-.boxbtn {
-
-min-height: 70px;
-
-background: #222a33;
-
-color: white;
-
-border:
-1px solid #46515d;
-
-}
-
-.opened {
-
-background: #26352b;
-
-}
-
-.out {
-
-background: #43292d;
-
-}
-
-.players > div {
-
-padding: 9px 0;
-
-border-bottom:
-1px solid #30363d;
-
-}
-
-.log {
-
-max-height: 200px;
-
-overflow: auto;
-
-font-size: 14px;
-
-}
-
-.money {
-
-font-size: 28px;
-
-font-weight: 900;
-
-}
-
-.pill {
-
-padding:
-5px 9px;
-
-border-radius: 999px;
-
-background: #252d36;
-
-font-size: 12px;
-
-}
-
-.power {
-
-display: flex;
-
-justify-content: space-between;
-
-gap: 8px;
-
-align-items: center;
-
-border:
-1px solid #30363d;
-
-border-radius: 12px;
-
-padding: 12px;
-
-margin:
-8px 0;
-
-}
-
-.power small {
-
-display: block;
-
-color: #9da7b3;
-
-margin-top: 3px;
-
-}
-
-@media(max-width:520px) {
-
-main {
-padding: 12px;
-}
-
-.grid {
-gap: 7px;
-}
-
-.boxbtn {
-min-height: 58px;
-padding: 8px;
-}
-
-.power {
-
-align-items:
-flex-start;
-
-flex-direction:
-column;
-
-}
-
-}
-
-</style>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>THE BOX</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0d0d12;
+      color: #ffffff;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .screen {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 48px;
+      margin: 20px 0 8px;
+      letter-spacing: 4px;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #aaa;
+      margin-bottom: 35px;
+    }
+
+    .panel {
+      background: #17171f;
+      border: 1px solid #292936;
+      border-radius: 14px;
+      padding: 22px;
+      margin-bottom: 18px;
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .mode-card {
+      background: #1b1b25;
+      border: 1px solid #30303d;
+      border-radius: 16px;
+      padding: 28px;
+      text-align: center;
+    }
+
+    .mode-card h2 {
+      margin-bottom: 10px;
+    }
+
+    .mode-card p {
+      color: #aaa;
+      line-height: 1.5;
+      min-height: 48px;
+    }
+
+    .mode-card button {
+      width: 100%;
+      margin-top: 15px;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 13px;
+      border-radius: 9px;
+      border: 1px solid #3a3a48;
+      background: #0f0f15;
+      color: white;
+      outline: none;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #7777ff;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0 7px;
+      color: #ccc;
+    }
+
+    button {
+      border: 0;
+      border-radius: 9px;
+      padding: 13px 18px;
+      background: #ffffff;
+      color: #111;
+      font-weight: bold;
+    }
+
+    button:hover {
+      opacity: 0.88;
+    }
+
+    button.secondary {
+      background: #292936;
+      color: white;
+    }
+
+    button.danger {
+      background: #b83a3a;
+      color: white;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .room-code {
+      font-size: 40px;
+      font-weight: bold;
+      letter-spacing: 8px;
+      margin: 15px 0;
+    }
+
+    .players {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 10px;
+    }
+
+    .player {
+      padding: 12px;
+      border-radius: 10px;
+      background: #22222d;
+      border: 1px solid #30303d;
+    }
+
+    .player.dead {
+      opacity: 0.4;
+      text-decoration: line-through;
+    }
+
+    .npc-tag {
+      font-size: 11px;
+      color: #aaa;
+      margin-left: 5px;
+    }
+
+    .game-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 18px;
+    }
+
+    .boxes {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(60px, 1fr));
+      gap: 10px;
+    }
+
+    .box {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      border: 2px solid #393946;
+      background: #20202a;
+      color: white;
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .box:hover:not(:disabled) {
+      border-color: white;
+    }
+
+    .box.safe {
+      background: #173b26;
+      border-color: #2d824d;
+    }
+
+    .box.eliminated {
+      background: #4a1919;
+      border-color: #9e3838;
+    }
+
+    .box:disabled {
+      cursor: default;
+    }
+
+    .cash {
+      font-size: 30px;
+      font-weight: bold;
+      margin: 8px 0 20px;
+    }
+
+    .objective {
+      background: #20202a;
+      border-radius: 10px;
+      padding: 15px;
+      line-height: 1.5;
+    }
+
+    .store {
+      display: grid;
+      gap: 9px;
+    }
+
+    .power {
+      background: #20202a;
+      border: 1px solid #30303d;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .power button {
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .log {
+      max-height: 280px;
+      overflow-y: auto;
+      background: #0f0f15;
+      border-radius: 10px;
+      padding: 12px;
+    }
+
+    .log-entry {
+      padding: 7px 0;
+      border-bottom: 1px solid #22222c;
+      color: #ccc;
+      font-size: 14px;
+    }
+
+    .status {
+      text-align: center;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 9px;
+      background: #22222d;
+      margin-bottom: 15px;
+    }
+
+    .error {
+      background: #4b1d1d;
+      color: #ffbaba;
+      padding: 12px;
+      border-radius: 9px;
+      margin: 12px 0;
+    }
+
+    .solo-info {
+      color: #bbb;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 750px) {
+      h1 {
+        font-size: 38px;
+      }
+
+      .mode-grid,
+      .game-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .screen {
+        padding: 14px;
+      }
+
+      .boxes {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+  </style>
 </head>
-
 
 <body>
 
-<main>
+<div id="homeScreen" class="screen">
 
+  <h1>THE BOX</h1>
 
-<div class="between">
+  <div class="subtitle">
+    Trust. Risk. Deception. Survival.
+  </div>
 
-<div>
+  <div id="errorBox" class="error hidden"></div>
 
-<h1>THE BOX</h1>
+  <div class="mode-grid">
 
-<div class="muted">
+    <div class="mode-card">
+      <h2>🌐 ONLINE</h2>
 
-Risk. Money. Deception. Survival.
+      <p>
+        Play with real people using a private room code.
+        4–16 players.
+      </p>
 
-</div>
+      <button id="onlineButton">
+        PLAY ONLINE
+      </button>
+    </div>
 
-</div>
+    <div class="mode-card">
+      <h2>🤖 SOLO TEST</h2>
 
-<div
-id="roomPill"
-class="pill">
+      <p>
+        Play by yourself against NPCs.
+        Perfect for testing THE BOX.
+      </p>
 
-No room
+      <button id="soloButton">
+        TEST SOLO
+      </button>
+    </div>
 
-</div>
-
-</div>
-
-
-<!-- HOME -->
-
-<section
-id="home"
-class="card">
-
-<h2>Play Online</h2>
-
-<p class="muted">
-
-Create a room and send the code
-to your friends.
-
-</p>
-
-
-<label>
-
-Your name
-
-<input
-id="name"
-maxlength="18"
-placeholder="Your name"
->
-
-</label>
-
-
-<div
-class="row"
-style="margin-top:10px">
-
-<button
-class="primary"
-id="create">
-
-Create Room
-
-</button>
+  </div>
 
 </div>
 
 
-<hr
-style="border-color:#30363d;margin:18px 0"
->
+<div id="onlineScreen" class="screen hidden">
 
+  <div class="panel">
 
-<label>
+    <h2>Online Game</h2>
 
-Room code
+    <label>Your Name</label>
+    <input id="onlineName" placeholder="Enter your name">
 
-<input
-id="code"
-maxlength="5"
-placeholder="ABCDE"
->
+    <div class="button-row" style="margin-top:15px;">
+      <button id="createRoomButton">
+        Create Room
+      </button>
 
-</label>
+      <button id="showJoinButton" class="secondary">
+        Join Room
+      </button>
 
+      <button id="backHomeButton" class="secondary">
+        Back
+      </button>
+    </div>
 
-<button
-id="join"
-style="margin-top:10px">
+    <div id="joinArea" class="hidden">
 
-Join Room
+      <label>Room Code</label>
 
-</button>
+      <input
+        id="roomCodeInput"
+        maxlength="5"
+        placeholder="ABCDE"
+      >
 
+      <button id="joinRoomButton" style="margin-top:10px;">
+        Join
+      </button>
 
-<p
-id="homeMsg"
-class="muted">
+    </div>
 
-</p>
-
-</section>
-
-
-<!-- LOBBY -->
-
-<section
-id="lobby"
-class="card hidden">
-
-<div class="between">
-
-<h2>Lobby</h2>
-
-<strong
-id="codeBig">
-
-</strong>
+  </div>
 
 </div>
 
 
-<p>
+<div id="soloSetupScreen" class="screen hidden">
 
-Send this room code to
-your friends:
+  <div class="panel">
 
-</p>
+    <h2>🤖 Solo Test Mode</h2>
 
+    <p class="solo-info">
+      You will play as the human player while the remaining
+      players are controlled by NPCs.
+    </p>
 
-<div
-style="
-font-size:36px;
-font-weight:900;
-letter-spacing:8px
-"
-id="codeDisplay">
+    <label>Your Name</label>
 
-</div>
+    <input
+      id="soloName"
+      placeholder="Enter your name"
+    >
 
+    <label>Number of Players</label>
 
-<div
-id="lobbyPlayers">
+    <select id="npcCount">
+      <option value="3">4 Players — You + 3 NPCs</option>
+      <option value="7">8 Players — You + 7 NPCs</option>
+      <option value="11">12 Players — You + 11 NPCs</option>
+      <option value="15">16 Players — You + 15 NPCs</option>
+    </select>
 
-</div>
+    <div class="button-row" style="margin-top:18px;">
 
+      <button id="startSoloButton">
+        START SOLO TEST
+      </button>
 
-<button
-id="start"
-class="primary"
-disabled>
+      <button id="backSoloButton" class="secondary">
+        Back
+      </button>
 
-Start Game
-(need 4 players)
+    </div>
 
-</button>
-
-</section>
-
-
-<!-- GAME -->
-
-<section
-id="game"
-class="hidden">
-
-
-<div
-class="card between">
-
-<div>
-
-<div class="muted">
-Round
-</div>
-
-<strong
-id="round">
-1
-</strong>
+  </div>
 
 </div>
 
 
-<div>
+<div id="lobbyScreen" class="screen hidden">
 
-<div class="muted">
-Turn
-</div>
+  <div class="panel center">
 
-<strong
-id="turn">
-—
-</strong>
+    <h2>Game Lobby</h2>
 
-</div>
+    <div>Room Code</div>
 
+    <div id="roomCode" class="room-code">
+      -----
+    </div>
 
-<div>
+    <p>
+      Give this code to your friends.
+    </p>
 
-<div class="muted">
-Your cash
-</div>
+    <button id="startOnlineGameButton">
+      START GAME
+    </button>
 
-<div
-class="money"
-id="cash">
+    <button id="leaveLobbyButton" class="secondary">
+      Leave
+    </button>
 
-$100
+  </div>
 
-</div>
+  <div class="panel">
 
-</div>
+    <h2>Players</h2>
 
-</div>
+    <div id="lobbyPlayers" class="players"></div>
 
-
-<!-- OBJECTIVE -->
-
-<div class="card">
-
-<div
-class="between">
-
-<h2>
-YOUR SECRET OBJECTIVE
-</h2>
-
-<span
-class="pill"
-id="alive">
-
-ALIVE
-
-</span>
+  </div>
 
 </div>
 
 
-<h3
-id="objName">
-—
-</h3>
+<div id="gameScreen" class="screen hidden">
+
+  <div id="gameStatus" class="status">
+    Game in progress
+  </div>
+
+  <div class="game-grid">
+
+    <div>
+
+      <div class="panel">
+
+        <h2>Boxes</h2>
+
+        <div id="boxes" class="boxes"></div>
+
+      </div>
+
+      <div class="panel">
+
+        <h2>Players</h2>
+
+        <div id="players" class="players"></div>
+
+      </div>
+
+      <div class="panel">
+
+        <h2>Game Log</h2>
+
+        <div id="log" class="log"></div>
+
+      </div>
+
+    </div>
 
 
-<p
-id="objText"
-class="muted">
-—
-</p>
+    <div>
 
+      <div class="panel">
 
-<strong
-id="objReward">
-</strong>
+        <h2>Your Status</h2>
 
+        <div id="cash" class="cash">
+          $100
+        </div>
 
-<div
-style="margin-top:10px">
+        <div id="objective" class="objective"></div>
 
-<strong>
-Your powers:
-</strong>
+      </div>
 
-<span
-id="myPowers">
-None
-</span>
+      <div class="panel">
 
-</div>
+        <h2>Power Store</h2>
 
-</div>
+        <div id="store" class="store"></div>
 
+      </div>
 
-<!-- BOXES -->
+    </div>
 
-<div class="card">
-
-<div
-class="between">
-
-<h2>
-THE BOXES
-</h2>
-
-<span
-class="muted">
-
-11 SAFE • 5 ELIMINATED
-
-</span>
-
-</div>
-
-
-<div
-id="boxes"
-class="grid">
-
-</div>
-
-</div>
-
-
-<!-- STORE -->
-
-<div class="card">
-
-<h2>
-POWER STORE
-</h2>
-
-<div
-id="store">
-
-</div>
+  </div>
 
 </div>
 
 
-<!-- PLAYERS -->
-
-<div class="card">
-
-<h2>
-PLAYERS
-</h2>
-
-<div
-id="players"
-class="players">
-
-</div>
-
-</div>
-
-
-<!-- LOG -->
-
-<div class="card">
-
-<h2>
-GAME LOG
-</h2>
-
-<div
-id="log"
-class="log">
-
-</div>
-
-</div>
-
-
-</section>
-
-
-<!-- FINISH -->
-
-<section
-id="finish"
-class="card hidden">
-
-<h2>
-GAME OVER
-</h2>
-
-
-<div
-id="winner">
-
-</div>
-
-
-<button
-id="reset"
-class="primary">
-
-Host: New Game
-
-</button>
-
-</section>
-
+<script src="/socket.io/socket.io.js"></script>
 
 <script>
 
 const socket = io();
 
-let state = null;
+let currentState = null;
 
+const homeScreen = document.getElementById("homeScreen");
+const onlineScreen = document.getElementById("onlineScreen");
+const soloSetupScreen = document.getElementById("soloSetupScreen");
+const lobbyScreen = document.getElementById("lobbyScreen");
+const gameScreen = document.getElementById("gameScreen");
 
-const $ = id =>
-document.getElementById(id);
+const errorBox = document.getElementById("errorBox");
 
+function showScreen(screen) {
+  [
+    homeScreen,
+    onlineScreen,
+    soloSetupScreen,
+    lobbyScreen,
+    gameScreen
+  ].forEach(element => {
+    element.classList.add("hidden");
+  });
 
-function escapeHTML(text) {
+  screen.classList.remove("hidden");
 
-return String(text)
-.replace(
-/[&<>"']/g,
-m => ({
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#039;"
-}[m])
-);
-
+  errorBox.classList.add("hidden");
 }
 
-
-function playerName() {
-
-return (
-$("name")
-.value.trim() ||
-"Player"
-).slice(0,18);
-
+function showError(message) {
+  errorBox.textContent = message;
+  errorBox.classList.remove("hidden");
 }
 
+document.getElementById("onlineButton").addEventListener("click", () => {
+  showScreen(onlineScreen);
+});
 
-function emit(
-event,
-data,
-callback
-) {
+document.getElementById("soloButton").addEventListener("click", () => {
+  showScreen(soloSetupScreen);
+});
 
-socket.emit(
-event,
-data,
-callback
-);
+document.getElementById("backHomeButton").addEventListener("click", () => {
+  showScreen(homeScreen);
+});
 
-}
+document.getElementById("backSoloButton").addEventListener("click", () => {
+  showScreen(homeScreen);
+});
 
+document.getElementById("showJoinButton").addEventListener("click", () => {
+  document.getElementById("joinArea").classList.toggle("hidden");
+});
 
-function render() {
+document.getElementById("createRoomButton").addEventListener("click", () => {
 
-if (!state) return;
+  const name = document.getElementById("onlineName").value.trim();
 
+  if (!name) {
+    showError("Please enter your name.");
+    return;
+  }
 
-$("roomPill")
-.textContent =
-"ROOM " +
-state.code;
-
-
-if (
-state.status === "lobby"
-) {
-
-$("home")
-.classList.add("hidden");
-
-$("game")
-.classList.add("hidden");
-
-$("finish")
-.classList.add("hidden");
-
-$("lobby")
-.classList.remove("hidden");
-
-
-$("codeBig")
-.textContent =
-state.code;
-
-
-$("codeDisplay")
-.textContent =
-state.code;
-
-
-$("lobbyPlayers")
-.innerHTML =
-state.players
-.map(
-(player,index) => `
-
-<div
-class="between"
-style="
-padding:10px 0;
-border-bottom:
-1px solid #30363d
-">
-
-<strong>
-${escapeHTML(player.name)}
-</strong>
-
-<span class="pill">
-
-${
-index === 0
-? "Host"
-: ""
-}
-
-</span>
-
-</div>
-
-`
-)
-.join("");
-
-
-$("start").disabled =
-state.players.length < 4;
-
-return;
-
-}
-
-
-$("home")
-.classList.add("hidden");
-
-$("lobby")
-.classList.add("hidden");
-
-$("game")
-.classList.remove("hidden");
-
-
-if (
-state.status === "finished"
-) {
-
-$("game")
-.classList.add("hidden");
-
-$("finish")
-.classList.remove("hidden");
-
-
-const winner =
-state.players.find(
-player =>
-player.id ===
-state.winner
-);
-
-
-$("winner")
-.innerHTML = `
-
-<h2>
-
-🏆
-
-${
-winner
-? escapeHTML(winner.name)
-: "No survivor"
-}
-
-</h2>
-
-<p>
-
-Final cash:
-
-${
-winner
-? "$" + winner.cash
-: "—"
-}
-
-</p>
-
-`;
-
-}
-
-
-const me =
-state.me;
-
-
-$("round")
-.textContent =
-state.round;
-
-
-const turnPlayer =
-state.players[
-state.turn
-];
-
-
-$("turn")
-.textContent =
-turnPlayer
-? turnPlayer.name
-: "—";
-
-
-$("cash")
-.textContent =
-"$" + me.cash;
-
-
-$("alive")
-.textContent =
-me.alive
-? "ALIVE"
-: "ELIMINATED";
-
-
-$("objName")
-.textContent =
-me.objective
-? me.objective[0]
-: "—";
-
-
-$("objText")
-.textContent =
-me.objective
-? me.objective[1]
-: "—";
-
-
-$("objReward")
-.textContent =
-me.objective
-? "+$" +
-me.objective[2]
-: "";
-
-
-$("myPowers")
-.textContent =
-me.powers &&
-me.powers.length
-? me.powers.join(", ")
-: "None";
-
-
-$("boxes")
-.innerHTML =
-state.boxes
-.map(box => {
-
-const disabled =
-box.opened ||
-!me.alive ||
-(
-state.players[
-state.turn
-]?.id !== me.id
-);
-
-
-return `
-
-<button
-
-class="
-boxbtn
-${
-box.opened
-? (
-box.outcome ===
-"SAFE"
-? "opened"
-: "out"
-)
-: ""
-}
-"
-
-${disabled ? "disabled" : ""}
-
-onclick="
-openBox(${box.num})
-">
-
-${
-box.opened
-? (
-box.outcome ===
-"SAFE"
-? "✓ SAFE"
-: "✕ OUT"
-)
-: "#" + box.num
-}
-
-</button>
-
-`;
-
-})
-.join("");
-
-
-$("players")
-.innerHTML =
-state.players
-.map(
-player => `
-
-<div class="between">
-
-<span>
-
-<strong>
-${escapeHTML(player.name)}
-</strong>
-
-${
-player.alive
-? ""
-: "💀"
-}
-
-${
-player.protection
-? "🛡️"
-: ""
-}
-
-</span>
-
-<span>
-
-$${player.cash}
-
-</span>
-
-</div>
-
-`
-)
-.join("");
-
-
-$("log")
-.innerHTML =
-state.log
-.slice()
-.reverse()
-.map(
-message =>
-`<div>
-• ${escapeHTML(message)}
-</div>`
-)
-.join("");
-
-
-renderStore();
-
-}
-
-
-function renderStore() {
-
-const me =
-state.me;
-
-
-$("store")
-.innerHTML =
-Object.entries(
-state.store
-)
-.map(
-([name,power]) => `
-
-<div class="power">
-
-<div>
-
-<strong>
-
-${escapeHTML(name)}
-
-—
-
-$${power.cost}
-
-</strong>
-
-<small>
-
-${escapeHTML(power.desc)}
-
-</small>
-
-</div>
-
-
-<button
-
-${
-!me.alive ||
-me.cash < power.cost
-? "disabled"
-: ""
-}
-
-onclick='buyPower(
-${JSON.stringify(name)}
-)'>
-
-Buy
-
-</button>
-
-</div>
-
-`
-)
-.join("");
-
-}
-
-
-function openBox(number) {
-
-emit(
-"openBox",
-{
-num:number
-}
-);
-
-}
-
-
-function buyPower(power) {
-
-const living =
-state.players.filter(
-player =>
-player.alive &&
-player.id !==
-state.me.id
-);
-
-
-const data = {
-name:power
-};
-
-
-if (
-[
-"Protection",
-"Steal",
-"Sabotage",
-"Royal Assignment"
-]
-.includes(power)
-) {
-
-const choice =
-prompt(
-"Choose player number:\n\n" +
-living
-.map(
-(player,index) =>
-`${index + 1}. ${player.name}`
-)
-.join("\n")
-);
-
-
-const index =
-Number(choice) - 1;
-
-
-if (!living[index]) {
-return;
-}
-
-
-data.targetId =
-living[index].id;
-
-}
-
-
-else if (
-power === "Reveal" ||
-power === "Prediction"
-) {
-
-const unopened =
-state.boxes.filter(
-box => !box.opened
-);
-
-
-const choice =
-prompt(
-"Choose unopened box:\n" +
-unopened
-.map(box => box.num)
-.join(", ")
-);
-
-
-const box =
-unopened.find(
-box =>
-box.num ===
-Number(choice)
-);
-
-
-if (!box) {
-return;
-}
-
-
-data.boxA =
-Number(choice);
-
-
-if (
-power ===
-"Prediction"
-) {
-
-const guess =
-prompt(
-"Predict SAFE or ELIMINATED",
-"SAFE"
-);
-
-
-const normalized =
-(
-guess || ""
-).toUpperCase();
-
-
-if (
-normalized !==
-"SAFE" &&
-normalized !==
-"ELIMINATED"
-) {
-
-return;
-
-}
-
-
-data.guess =
-normalized;
-
-}
-
-}
-
-
-else if (
-power === "Swap"
-) {
-
-const first =
-prompt(
-"First unopened box number"
-);
-
-
-const second =
-prompt(
-"Second unopened box number"
-);
-
-
-data.boxA =
-Number(first);
-
-data.boxB =
-Number(second);
-
-}
-
-
-emit(
-"buyPower",
-data,
-result => {
-
-if (
-result &&
-!result.ok
-) {
-
-alert(result.error);
-
-}
+  socket.emit("createRoom", { name });
 
 });
 
+document.getElementById("joinRoomButton").addEventListener("click", () => {
+
+  const name = document.getElementById("onlineName").value.trim();
+  const code = document.getElementById("roomCodeInput").value.trim().toUpperCase();
+
+  if (!name) {
+    showError("Please enter your name.");
+    return;
+  }
+
+  if (code.length !== 5) {
+    showError("Room codes are 5 characters.");
+    return;
+  }
+
+  socket.emit("joinRoom", {
+    name,
+    code
+  });
+
+});
+
+document.getElementById("startSoloButton").addEventListener("click", () => {
+
+  const name = document.getElementById("soloName").value.trim();
+  const npcCount = Number(
+    document.getElementById("npcCount").value
+  );
+
+  if (!name) {
+    showError("Please enter your name.");
+    return;
+  }
+
+  socket.emit("createSolo", {
+    name,
+    npcCount
+  });
+
+});
+
+document.getElementById("startOnlineGameButton").addEventListener("click", () => {
+  socket.emit("startGame");
+});
+
+document.getElementById("leaveLobbyButton").addEventListener("click", () => {
+  location.reload();
+});
+
+socket.on("errorMessage", message => {
+  showError(message);
+});
+
+socket.on("state", state => {
+
+  currentState = state;
+
+  if (state.started) {
+    showScreen(gameScreen);
+    renderGame(state);
+  } else {
+    showScreen(lobbyScreen);
+    renderLobby(state);
+  }
+
+});
+
+function renderLobby(state) {
+
+  document.getElementById("roomCode").textContent =
+    state.code;
+
+  const container =
+    document.getElementById("lobbyPlayers");
+
+  container.innerHTML = "";
+
+  state.players.forEach(player => {
+
+    const div = document.createElement("div");
+
+    div.className = "player";
+
+    div.innerHTML =
+      `<strong>${escapeHtml(player.name)}</strong>` +
+      (player.isNPC
+        ? `<span class="npc-tag">NPC</span>`
+        : "");
+
+    container.appendChild(div);
+
+  });
+
+  const startButton =
+    document.getElementById("startOnlineGameButton");
+
+  startButton.classList.toggle(
+    "hidden",
+    state.players.length < 4
+  );
+
 }
 
+function renderGame(state) {
 
-$("create").onclick =
-() => {
+  const you = state.you;
 
-emit(
-"createRoom",
-{
-name:playerName()
-},
-result => {
+  if (!you) return;
 
-if (!result.ok) {
+  document.getElementById("cash").textContent =
+    `$${you.cash}`;
 
-$("homeMsg")
-.textContent =
-result.error;
+  const objective =
+    document.getElementById("objective");
+
+  objective.innerHTML = `
+    <strong>${escapeHtml(you.objective.name)}</strong>
+    <br><br>
+    ${escapeHtml(you.objective.text)}
+    <br><br>
+    Reward: <strong>$${you.objective.reward}</strong>
+  `;
+
+  renderBoxes(state);
+  renderPlayers(state);
+  renderStore(you);
+  renderLog(state);
+
+  const status =
+    document.getElementById("gameStatus");
+
+  if (state.finished) {
+
+    status.textContent =
+      "🏆 GAME OVER";
+
+  } else if (!you.alive) {
+
+    status.textContent =
+      "💀 YOU HAVE BEEN ELIMINATED";
+
+  } else {
+
+    status.textContent =
+      state.mode === "solo"
+        ? "🤖 SOLO TEST — Your turn"
+        : "🎮 GAME IN PROGRESS";
+
+  }
 
 }
 
-});
+function renderBoxes(state) {
 
-};
+  const container =
+    document.getElementById("boxes");
 
+  container.innerHTML = "";
 
-$("join").onclick =
-() => {
+  state.boxes.forEach(box => {
 
-emit(
-"joinRoom",
-{
-name:playerName(),
+    const button =
+      document.createElement("button");
 
-code:
-$("code")
-.value
-.trim()
-.toUpperCase()
+    button.className = "box";
 
-},
-result => {
+    button.textContent = box.number;
 
-if (!result.ok) {
+    if (box.opened) {
 
-$("homeMsg")
-.textContent =
-result.error;
+      button.disabled = true;
+
+      if (box.result === "SAFE") {
+        button.classList.add("safe");
+      } else {
+        button.classList.add("eliminated");
+      }
+
+      button.textContent =
+        `${box.number}\n${box.result}`;
+
+    } else {
+
+      button.addEventListener("click", () => {
+
+        if (!currentState.you.alive) return;
+
+        socket.emit("openBox", {
+          boxNumber: box.number
+        });
+
+      });
+
+    }
+
+    container.appendChild(button);
+
+  });
 
 }
 
-});
+function renderPlayers(state) {
 
-};
+  const container =
+    document.getElementById("players");
 
+  container.innerHTML = "";
 
-$("start").onclick =
-() => {
+  state.players.forEach(player => {
 
-emit(
-"startGame"
-);
+    const div =
+      document.createElement("div");
 
-};
+    div.className =
+      "player" + (!player.alive ? " dead" : "");
 
+    div.innerHTML = `
+      <strong>${escapeHtml(player.name)}</strong>
+      ${player.isNPC
+        ? `<span class="npc-tag">NPC</span>`
+        : ""}
+      <br>
+      $${player.cash}
+      <br>
+      ${player.alive ? "ALIVE" : "ELIMINATED"}
+    `;
 
-$("reset").onclick =
-() => {
+    container.appendChild(div);
 
-emit(
-"resetRoom"
-);
+  });
 
-};
+}
 
+function renderStore(you) {
 
-socket.on(
-"state",
-newState => {
+  const container =
+    document.getElementById("store");
 
-state =
-newState;
+  container.innerHTML = "";
 
-render();
+  const powers = [
+    {
+      name: "Protection",
+      description: "Protect another player from elimination."
+    },
+    {
+      name: "Reveal",
+      description: "Reveal a box's result."
+    },
+    {
+      name: "Second Chance",
+      description: "Survive one elimination."
+    },
+    {
+      name: "Steal",
+      description: "Steal $50 from another player."
+    },
+    {
+      name: "Swap",
+      description: "Swap your chosen box."
+    },
+    {
+      name: "Prediction",
+      description: "Predict whether a box is safe."
+    },
+    {
+      name: "Sabotage",
+      description: "Cause another player to lose $50."
+    },
+    {
+      name: "Royal Assignment",
+      description: "Choose who opens the next box."
+    }
+  ];
 
-});
+  powers.forEach(power => {
 
+    const div =
+      document.createElement("div");
 
-socket.on(
-"privateInfo",
-information => {
+    div.className = "power";
 
-alert(
-information.text
-);
+    div.innerHTML = `
+      <strong>${power.name}</strong>
+      <br>
+      <small>${power.description}</small>
+      <br>
+      <button>Buy for $60</button>
+    `;
 
-});
+    div.querySelector("button").addEventListener("click", () => {
+
+      socket.emit("buyPower", {
+        power: power.name
+      });
+
+    });
+
+    container.appendChild(div);
+
+  });
+
+}
+
+function renderLog(state) {
+
+  const container =
+    document.getElementById("log");
+
+  container.innerHTML = "";
+
+  [...state.log].reverse().forEach(message => {
+
+    const div =
+      document.createElement("div");
+
+    div.className = "log-entry";
+
+    div.textContent = message;
+
+    container.appendChild(div);
+
+  });
+
+}
+
+function escapeHtml(value) {
+
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+}
 
 </script>
 
-
-</main>
-
 </body>
-
 </html>
