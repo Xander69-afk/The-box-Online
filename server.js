@@ -1,4 +1,3 @@
-
 const path = require("path");
 const http = require("http");
 const express = require("express");
@@ -10,83 +9,194 @@ const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, "public")));
 
+const PORT = process.env.PORT || 10000;
+
 const rooms = new Map();
 
 const OBJECTIVES = [
-  ["NEGOTIATOR", "Make 3 deals with different players; at least 1 must be honored.", 100],
-  ["CON ARTIST", "Successfully deceive another player about your objective.", 120],
-  ["DIPLOMAT", "Have 2 different players voluntarily defend or protect you.", 100],
-  ["RISK TAKER", "Choose 3 unopened boxes and survive the third.", 100],
-  ["PROPHET", "Make 2 correct predictions.", 120],
-  ["KINGMAKER", "Cause another player to gain $100 through your actions.", 100],
-  ["SURVIVOR", "Survive 4 box-opening rounds.", 120],
-  ["DEALER", "Exchange money with 3 different players.", 100],
-  ["INFLUENCER", "Get 2 players to support your decision.", 100],
-  ["GAMBLER", "Spend at least $120 in the Power Store and survive.", 120],
-  ["GUARDIAN", "Use Protection on another player.", 100],
-  ["SCOUT", "Correctly identify 2 safe boxes before they open.", 120],
-  ["SABOTEUR", "Cause another player to lose money through your action.", 100],
-  ["LOYALIST", "Honor 2 separate deals.", 120],
-  ["SECRET KEEPER", "Keep your objective undisclosed until the final round.", 120],
-  ["OPPORTUNIST", "Be the last player to spend money in the store.", 100]
+  { name: "NEGOTIATOR", text: "Make 3 deals with different players; at least 1 honored.", reward: 100 },
+  { name: "CON ARTIST", text: "Successfully deceive another player about your objective.", reward: 120 },
+  { name: "DIPLOMAT", text: "Have 2 players voluntarily defend or protect you.", reward: 100 },
+  { name: "RISK TAKER", text: "Choose 3 unopened boxes and survive the third.", reward: 100 },
+  { name: "PROPHET", text: "Make 2 correct predictions.", reward: 120 },
+  { name: "KINGMAKER", text: "Cause another player to gain $100 through your actions.", reward: 100 },
+  { name: "SURVIVOR", text: "Survive 4 box-opening rounds.", reward: 120 },
+  { name: "DEALER", text: "Exchange money with 3 different players.", reward: 100 },
+  { name: "INFLUENCER", text: "Get 2 players to support your decision.", reward: 100 },
+  { name: "GAMBLER", text: "Spend at least $120 in the Power Store and survive.", reward: 120 },
+  { name: "GUARDIAN", text: "Use Protection on another player.", reward: 100 },
+  { name: "SCOUT", text: "Correctly identify 2 safe boxes before they open.", reward: 120 },
+  { name: "SABOTEUR", text: "Cause another player to lose money through your action.", reward: 100 },
+  { name: "LOYALIST", text: "Honor 2 separate deals.", reward: 120 },
+  { name: "SECRET KEEPER", text: "Keep your objective undisclosed until the final round.", reward: 120 },
+  { name: "OPPORTUNIST", text: "Be last player to spend money in the store.", reward: 100 }
 ];
 
-const POWERS = {
+const POWER_DEFINITIONS = {
   Protection: {
-    cost: 100,
-    desc: "Protect a player from their next elimination."
+    cost: 60,
+    description: "Protect another player from one elimination."
   },
   Reveal: {
-    cost: 80,
-    desc: "Privately reveal whether an unopened box is SAFE or ELIMINATED."
+    cost: 60,
+    description: "Reveal whether an unopened box is SAFE or ELIMINATED."
   },
   "Second Chance": {
-    cost: 120,
-    desc: "Return once after elimination with $50."
+    cost: 60,
+    description: "Survive one elimination."
   },
   Steal: {
-    cost: 100,
-    desc: "Take $50 from another player."
+    cost: 60,
+    description: "Steal $50 from another player."
   },
   Swap: {
-    cost: 100,
-    desc: "Swap the hidden outcomes of two unopened boxes."
+    cost: 60,
+    description: "Swap your chosen box with another unopened box."
   },
   Prediction: {
     cost: 60,
-    desc: "Predict SAFE or ELIMINATED. Correct = +$60."
+    description: "Predict whether a chosen box is SAFE or ELIMINATED."
   },
   Sabotage: {
-    cost: 100,
-    desc: "Make another player lose $50."
+    cost: 60,
+    description: "Cause another player to lose $50."
   },
   "Royal Assignment": {
-    cost: 120,
-    desc: "Choose who takes the next box turn."
+    cost: 60,
+    description: "Choose who must open the next box."
   }
 };
 
-function shuffle(array) {
-  const a = [...array];
+const PERSONALITIES = [
+  {
+    name: "The Gambler",
+    style: "risky"
+  },
+  {
+    name: "The Analyst",
+    style: "logical"
+  },
+  {
+    name: "The Opportunist",
+    style: "opportunistic"
+  }
+];
 
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+function randomItem(array) {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+function createBoxes() {
+  const boxes = [];
+
+  for (let i = 1; i <= 16; i++) {
+    boxes.push({
+      number: i,
+      result: i <= 11 ? "SAFE" : "ELIMINATED",
+      opened: false
+    });
   }
 
-  return a;
+  // Shuffle results.
+  for (let i = boxes.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [boxes[i].result, boxes[j].result] = [boxes[j].result, boxes[i].result];
+  }
+
+  return boxes;
 }
 
-function createRoomCode() {
-  return Math.random().toString(36).substring(2, 7).toUpperCase();
+function createPlayer(id, name, isNPC = false, personality = null) {
+  return {
+    id,
+    name,
+    isNPC,
+    personality,
+    cash: 100,
+    alive: true,
+    powers: [],
+    protection: false,
+    secondChance: false,
+    objective: randomItem(OBJECTIVES),
+    objectiveComplete: false,
+    boxesOpened: 0,
+    predictions: [],
+    correctPredictions: 0
+  };
 }
 
-function livingPlayers(room) {
-  return room.players.filter(player => player.alive);
+function generateRoomCode() {
+  let code;
+
+  do {
+    code = Math.random()
+      .toString(36)
+      .substring(2, 7)
+      .toUpperCase();
+  } while (rooms.has(code));
+
+  return code;
 }
 
-function findPlayer(room, id) {
-  return room.players.find(player => player.id === id);
+function createRoom(hostId, hostName) {
+  const code = generateRoomCode();
+
+  const room = {
+    code,
+    hostId,
+    mode: "online",
+    started: false,
+    finished: false,
+    goldenBox: Math.floor(Math.random() * 16) + 1,
+    boxes: createBoxes(),
+    currentTurn: null,
+    log: [],
+    players: []
+  };
+
+  room.players.push(createPlayer(hostId, hostName));
+
+  rooms.set(code, room);
+
+  return room;
+}
+
+function createSoloRoom(socketId, playerName, npcCount = 3) {
+  const code = generateRoomCode();
+
+  const room = {
+    code,
+    hostId: socketId,
+    mode: "solo",
+    started: true,
+    finished: false,
+    goldenBox: Math.floor(Math.random() * 16) + 1,
+    boxes: createBoxes(),
+    currentTurn: socketId,
+    log: [],
+    players: []
+  };
+
+  room.players.push(createPlayer(socketId, playerName));
+
+  for (let i = 0; i < npcCount; i++) {
+    const personality = PERSONALITIES[i % PERSONALITIES.length];
+
+    room.players.push(
+      createPlayer(
+        `npc-${i}-${Date.now()}`,
+        `${personality.name} ${i + 1}`,
+        true,
+        personality
+      )
+    );
+  }
+
+  rooms.set(code, room);
+
+  addLog(room, `Solo Test started with ${room.players.length} players.`);
+
+  return room;
 }
 
 function addLog(room, message) {
@@ -97,701 +207,494 @@ function addLog(room, message) {
   }
 }
 
-function publicState(room) {
+function getPublicState(room) {
   return {
     code: room.code,
-    status: room.status,
-    hostId: room.hostId,
-    turn: room.turn,
-    round: room.round,
-
+    mode: room.mode,
+    started: room.started,
+    finished: room.finished,
+    goldenBox: room.finished ? room.goldenBox : null,
+    currentTurn: room.currentTurn,
     boxes: room.boxes.map(box => ({
-      num: box.num,
+      number: box.number,
       opened: box.opened,
-      outcome: box.opened ? box.outcome : null
+      result: box.opened ? box.result : null,
+      isGolden: room.finished ? box.number === room.goldenBox : false
     })),
-
     players: room.players.map(player => ({
       id: player.id,
       name: player.name,
-      alive: player.alive,
+      isNPC: player.isNPC,
+      personality: player.isNPC ? player.personality?.name : null,
       cash: player.cash,
-      protection: player.protection
+      alive: player.alive,
+      powers: player.powers,
+      protection: player.protection,
+      secondChance: player.secondChance
     })),
-
-    log: room.log.slice(-40),
-    winner: room.winner || null
+    log: room.log
   };
 }
 
-function privateState(room, player) {
-  return {
-    ...publicState(room),
+function getPrivateState(room, playerId) {
+  const player = room.players.find(p => p.id === playerId);
 
-    me: {
+  if (!player) return null;
+
+  return {
+    ...getPublicState(room),
+    you: {
       id: player.id,
       name: player.name,
       cash: player.cash,
       alive: player.alive,
-      objective: player.objective,
       powers: player.powers,
       protection: player.protection,
-      secondChance: player.secondChance
-    },
-
-    store: POWERS
+      secondChance: player.secondChance,
+      objective: player.objective,
+      objectiveComplete: player.objectiveComplete,
+      boxesOpened: player.boxesOpened,
+      correctPredictions: player.correctPredictions
+    }
   };
 }
 
-function broadcast(room) {
+function emitRoom(room) {
   for (const player of room.players) {
-    const socket = room.sockets.get(player.id);
-
-    if (socket) {
-      socket.emit("state", privateState(room, player));
+    if (!player.isNPC) {
+      io.to(player.id).emit("state", getPrivateState(room, player.id));
     }
   }
 }
 
-function nextLivingPlayer(room, currentIndex) {
-  if (livingPlayers(room).length <= 1) {
-    return null;
-  }
+function alivePlayers(room) {
+  return room.players.filter(player => player.alive);
+}
 
-  let index = currentIndex;
-
-  for (let i = 0; i < room.players.length; i++) {
-    index = (index + 1) % room.players.length;
-
-    if (room.players[index].alive) {
-      return index;
-    }
-  }
-
-  return null;
+function unopenedBoxes(room) {
+  return room.boxes.filter(box => !box.opened);
 }
 
 function finishGame(room) {
-  if (room.status === "finished") {
-    return;
+  if (room.finished) return;
+
+  room.finished = true;
+
+  const survivors = alivePlayers(room);
+
+  if (survivors.length === 1) {
+    addLog(room, `🏆 ${survivors[0].name} is the final survivor!`);
+  } else if (survivors.length > 1) {
+    addLog(
+      room,
+      `🏆 Game finished. Survivors: ${survivors
+        .map(player => player.name)
+        .join(", ")}`
+    );
+  } else {
+    addLog(room, "Game finished. There are no survivors.");
   }
 
-  room.status = "finished";
+  emitRoom(room);
+}
 
-  const survivors = livingPlayers(room);
-
-  if (survivors.length > 0) {
-    room.winner = survivors[0].id;
-    addLog(room, `🏆 ${survivors[0].name} is the last survivor!`);
+function checkGameEnd(room) {
+  if (alivePlayers(room).length <= 1) {
+    finishGame(room);
+    return true;
   }
 
-  broadcast(room);
+  if (unopenedBoxes(room).length === 0) {
+    finishGame(room);
+    return true;
+  }
+
+  return false;
 }
 
-function startGame(room) {
-  const outcomes = shuffle([
-    ...Array(11).fill("SAFE"),
-    ...Array(5).fill("ELIMINATED")
-  ]);
+function chooseNpcTarget(room, npc) {
+  const candidates = alivePlayers(room).filter(player => player.id !== npc.id);
 
-  room.boxes = outcomes.map((outcome, index) => ({
-    num: index + 1,
-    outcome,
-    opened: false
-  }));
+  if (!candidates.length) return null;
 
-  room.goldenBox = Math.floor(Math.random() * 16) + 1;
+  if (npc.personality?.style === "logical") {
+    return candidates
+      .slice()
+      .sort((a, b) => b.cash - a.cash)[0];
+  }
 
-  room.players.forEach((player, index) => {
-    player.cash = 100;
-    player.alive = true;
-    player.protection = false;
-    player.secondChance = false;
-    player.powers = [];
-    player.objective = OBJECTIVES[index % OBJECTIVES.length];
-  });
+  if (npc.personality?.style === "opportunistic") {
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
 
-  room.status = "playing";
-  room.turn = 0;
-  room.round = 1;
-  room.log = [];
-  room.winner = null;
-
-  addLog(room, "THE BOX has begun. Everyone starts with $100.");
-
-  broadcast(room);
+  return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-function eliminatePlayer(room, player) {
-  if (player.protection) {
-    player.protection = false;
+function npcBuyPower(room, npc) {
+  if (npc.cash < 60) return false;
+
+  const unopened = unopenedBoxes(room).length;
+
+  let power;
+
+  if (npc.personality?.style === "risky") {
+    power = Math.random() < 0.5 ? "Prediction" : "Protection";
+  } else if (npc.personality?.style === "logical") {
+    power = Math.random() < 0.5 ? "Reveal" : "Prediction";
+  } else {
+    power = Math.random() < 0.5 ? "Steal" : "Protection";
+  }
+
+  npc.cash -= POWER_DEFINITIONS[power].cost;
+  npc.powers.push(power);
+
+  addLog(room, `${npc.name} bought ${power}.`);
+
+  return true;
+}
+
+function npcUsePower(room, npc) {
+  if (!npc.powers.length) return false;
+
+  const power = randomItem(npc.powers);
+  const target = chooseNpcTarget(room, npc);
+
+  if (!target && ["Protection", "Steal", "Sabotage"].includes(power)) {
+    return false;
+  }
+
+  if (power === "Protection" && target) {
+    target.protection = true;
+    npc.powers.splice(npc.powers.indexOf(power), 1);
+    addLog(room, `${npc.name} protected ${target.name}.`);
+    return true;
+  }
+
+  if (power === "Steal" && target) {
+    const amount = Math.min(50, target.cash);
+    target.cash -= amount;
+    npc.cash += amount;
+    npc.powers.splice(npc.powers.indexOf(power), 1);
+
+    addLog(room, `${npc.name} stole $${amount} from ${target.name}.`);
+    return true;
+  }
+
+  if (power === "Sabotage" && target) {
+    const amount = Math.min(50, target.cash);
+    target.cash -= amount;
+    npc.powers.splice(npc.powers.indexOf(power), 1);
+
+    addLog(room, `${npc.name} sabotaged ${target.name}, costing $${amount}.`);
+    return true;
+  }
+
+  if (power === "Reveal") {
+    const boxes = unopenedBoxes(room);
+
+    if (!boxes.length) return false;
+
+    const box = randomItem(boxes);
+
+    npc.powers.splice(npc.powers.indexOf(power), 1);
 
     addLog(
       room,
-      `🛡️ ${player.name} survived with Protection.`
+      `${npc.name} used Reveal on Box ${box.number}.`
     );
 
-    return;
+    return true;
   }
 
-  if (player.secondChance) {
-    player.secondChance = false;
-    player.cash = 50;
+  if (power === "Second Chance") {
+    npc.secondChance = true;
+    npc.powers.splice(npc.powers.indexOf(power), 1);
 
-    addLog(
-      room,
-      `♻️ ${player.name} used Second Chance and returned with $50.`
-    );
+    addLog(room, `${npc.name} activated Second Chance.`);
 
-    return;
+    return true;
   }
 
-  player.alive = false;
+  return false;
+}
 
-  addLog(
-    room,
-    `💀 ${player.name} was eliminated.`
+function npcChooseBox(room, npc) {
+  const boxes = unopenedBoxes(room);
+
+  if (!boxes.length) return null;
+
+  // The NPC does not know the hidden result.
+  // Different personalities choose differently.
+  if (npc.personality?.style === "risky") {
+    return randomItem(boxes);
+  }
+
+  if (npc.personality?.style === "logical") {
+    // For now, choose from the middle of the remaining options.
+    return boxes[Math.floor(boxes.length / 2)];
+  }
+
+  return randomItem(boxes);
+}
+
+function openBox(room, playerId, boxNumber) {
+  if (room.finished) return;
+
+  const player = room.players.find(p => p.id === playerId);
+
+  if (!player || !player.alive) return;
+
+  const box = room.boxes.find(
+    b => b.number === Number(boxNumber)
   );
+
+  if (!box || box.opened) return;
+
+  box.opened = true;
+  player.boxesOpened += 1;
+
+  if (box.result === "SAFE") {
+    addLog(room, `${player.name} opened Box ${box.number}: SAFE.`);
+  } else {
+    if (player.protection) {
+      player.protection = false;
+
+      addLog(
+        room,
+        `${player.name} opened Box ${box.number}: ELIMINATED — but Protection saved them.`
+      );
+    } else if (player.secondChance) {
+      player.secondChance = false;
+
+      addLog(
+        room,
+        `${player.name} opened Box ${box.number}: ELIMINATED — Second Chance saved them.`
+      );
+    } else {
+      player.alive = false;
+
+      addLog(
+        room,
+        `${player.name} opened Box ${box.number}: ELIMINATED.`
+      );
+    }
+  }
+
+  checkGameEnd(room);
+  emitRoom(room);
+}
+
+function runNpcTurn(room) {
+  if (room.finished || room.mode !== "solo") return;
+
+  const npcs = alivePlayers(room).filter(player => player.isNPC);
+
+  if (!npcs.length) {
+    checkGameEnd(room);
+    return;
+  }
+
+  // Find the next living NPC.
+  const npc = npcs[0];
+
+  // Occasionally buy a power.
+  if (Math.random() < 0.35) {
+    npcBuyPower(room, npc);
+  }
+
+  // Occasionally use a power.
+  if (Math.random() < 0.35) {
+    npcUsePower(room, npc);
+  }
+
+  const box = npcChooseBox(room, npc);
+
+  if (box) {
+    openBox(room, npc.id, box.number);
+  }
+
+  if (!room.finished) {
+    setTimeout(() => {
+      emitRoom(room);
+    }, 300);
+  }
 }
 
 io.on("connection", socket => {
+  socket.on("createRoom", ({ name }) => {
+    if (!name || !name.trim()) return;
 
-  socket.on("createRoom", ({ name }, callback) => {
+    const room = createRoom(socket.id, name.trim());
 
-    const code = createRoomCode();
+    socket.join(room.code);
 
-    const player = {
-      id: socket.id,
-      name: String(name || "Player").slice(0, 18),
-      cash: 100,
-      alive: true,
-      powers: [],
-      protection: false,
-      secondChance: false,
-      objective: null
-    };
-
-    const room = {
-      code,
-      hostId: socket.id,
-      status: "lobby",
-
-      players: [player],
-
-      sockets: new Map([
-        [socket.id, socket]
-      ]),
-
-      boxes: [],
-      goldenBox: null,
-      turn: 0,
-      round: 1,
-      log: [],
-      winner: null
-    };
-
-    rooms.set(code, room);
-
-    socket.join(code);
-    socket.data.room = code;
-
-    callback({
-      ok: true,
-      code
-    });
-
-    broadcast(room);
+    emitRoom(room);
   });
 
+  socket.on("joinRoom", ({ name, code }) => {
+    if (!name || !name.trim() || !code) return;
 
-  socket.on("joinRoom", ({ code, name }, callback) => {
-
-    const room = rooms.get(
-      String(code || "").toUpperCase()
-    );
+    const room = rooms.get(code.toUpperCase());
 
     if (!room) {
-      return callback({
-        ok: false,
-        error: "Room not found."
-      });
+      socket.emit("errorMessage", "Room not found.");
+      return;
     }
 
-    if (room.status !== "lobby") {
-      return callback({
-        ok: false,
-        error: "That game has already started."
-      });
+    if (room.started) {
+      socket.emit("errorMessage", "Game already started.");
+      return;
     }
 
     if (room.players.length >= 16) {
-      return callback({
-        ok: false,
-        error: "Room is full."
-      });
+      socket.emit("errorMessage", "Room is full.");
+      return;
     }
 
-    const player = {
-      id: socket.id,
-      name: String(name || "Player").slice(0, 18),
-      cash: 100,
-      alive: true,
-      powers: [],
-      protection: false,
-      secondChance: false,
-      objective: null
-    };
-
-    room.players.push(player);
-    room.sockets.set(socket.id, socket);
+    room.players.push(createPlayer(socket.id, name.trim()));
 
     socket.join(room.code);
-    socket.data.room = room.code;
 
-    callback({
-      ok: true,
-      code: room.code
-    });
+    addLog(room, `${name.trim()} joined the room.`);
 
-    broadcast(room);
+    emitRoom(room);
   });
-
 
   socket.on("startGame", () => {
+    for (const room of rooms.values()) {
+      if (room.hostId !== socket.id) continue;
 
-    const room = rooms.get(socket.data.room);
+      if (room.players.length < 4) {
+        socket.emit(
+          "errorMessage",
+          "You need at least 4 players to start."
+        );
+        return;
+      }
 
-    if (!room) return;
+      room.started = true;
+      room.currentTurn = room.players[0].id;
 
-    if (room.hostId !== socket.id) return;
+      addLog(room, "Game started!");
 
-    if (room.players.length < 4) return;
-
-    startGame(room);
-  });
-
-
-  socket.on("openBox", ({ num }) => {
-
-    const room = rooms.get(socket.data.room);
-
-    if (!room) return;
-
-    const player = findPlayer(room, socket.id);
-
-    if (!player) return;
-
-    if (room.status !== "playing") return;
-
-    if (!player.alive) return;
-
-    const currentPlayer = room.players[room.turn];
-
-    if (!currentPlayer || currentPlayer.id !== player.id) {
+      emitRoom(room);
       return;
     }
+  });
 
-    const box = room.boxes.find(
-      b => b.num === Number(num)
-    );
+  socket.on("createSolo", ({ name, npcCount }) => {
+    if (!name || !name.trim()) return;
 
-    if (!box || box.opened) return;
+    let count = Number(npcCount);
 
-    box.opened = true;
-
-    addLog(
-      room,
-      `${player.name} opened Box #${box.num}.`
-    );
-
-    if (box.num === room.goldenBox) {
-
-      player.cash += 100;
-
-      addLog(
-        room,
-        `🎁 ${player.name} found the Golden Box and gained $100!`
-      );
+    if (!Number.isFinite(count)) {
+      count = 3;
     }
 
-    if (box.outcome === "SAFE") {
+    count = Math.max(3, Math.min(15, Math.floor(count)));
 
-      addLog(
-        room,
-        `🟢 Box #${box.num} was SAFE.`
-      );
+    const room = createSoloRoom(socket.id, name.trim(), count);
 
-    } else {
+    socket.join(room.code);
 
-      addLog(
-        room,
-        `🔴 Box #${box.num} was ELIMINATED.`
-      );
+    emitRoom(room);
 
-      eliminatePlayer(room, player);
-    }
+    setTimeout(() => {
+      runNpcTurn(room);
+    }, 1200);
+  });
 
-    if (livingPlayers(room).length <= 1) {
-      finishGame(room);
+  socket.on("openBox", ({ boxNumber }) => {
+    for (const room of rooms.values()) {
+      const player = room.players.find(p => p.id === socket.id);
+
+      if (!player) continue;
+
+      if (room.mode === "solo" && player.isNPC) return;
+
+      openBox(room, socket.id, boxNumber);
+
+      if (room.mode === "solo" && !room.finished) {
+        setTimeout(() => {
+          runNpcTurn(room);
+        }, 1000);
+      }
+
       return;
     }
-
-    const next = nextLivingPlayer(
-      room,
-      room.turn
-    );
-
-    if (next !== null) {
-      room.turn = next;
-      room.round++;
-    }
-
-    broadcast(room);
   });
 
+  socket.on("buyPower", ({ power }) => {
+    for (const room of rooms.values()) {
+      const player = room.players.find(p => p.id === socket.id);
 
-  socket.on("buyPower", ({
-    name,
-    targetId,
-    boxA,
-    boxB,
-    guess
-  }, callback) => {
+      if (!player || !room.started || room.finished) continue;
 
-    const room = rooms.get(socket.data.room);
+      const definition = POWER_DEFINITIONS[power];
 
-    if (!room) {
-      return callback?.({
-        ok: false,
-        error: "Room not found."
-      });
-    }
+      if (!definition) return;
 
-    const player = findPlayer(
-      room,
-      socket.id
-    );
-
-    const power = POWERS[name];
-
-    if (!player || !power || !player.alive) {
-      return callback?.({
-        ok: false,
-        error: "Invalid action."
-      });
-    }
-
-    if (player.cash < power.cost) {
-      return callback?.({
-        ok: false,
-        error: "Not enough cash."
-      });
-    }
-
-    player.cash -= power.cost;
-    player.powers.push(name);
-
-
-    if (name === "Protection") {
-
-      const target = findPlayer(
-        room,
-        targetId
-      );
-
-      if (!target || !target.alive) {
-        return callback?.({
-          ok: false,
-          error: "Choose a living player."
-        });
+      if (player.cash < definition.cost) {
+        socket.emit("errorMessage", "Not enough cash.");
+        return;
       }
 
-      target.protection = true;
+      player.cash -= definition.cost;
+      player.powers.push(power);
 
-      addLog(
-        room,
-        `${player.name} bought Protection.`
-      );
+      addLog(room, `${player.name} bought ${power}.`);
+
+      emitRoom(room);
+
+      return;
     }
-
-
-    else if (name === "Reveal") {
-
-      const box = room.boxes.find(
-        b =>
-          b.num === Number(boxA) &&
-          !b.opened
-      );
-
-      if (!box) {
-        return callback?.({
-          ok: false,
-          error: "Choose an unopened box."
-        });
-      }
-
-      socket.emit(
-        "privateInfo",
-        {
-          type: "reveal",
-          text:
-            `Box #${box.num} is ${box.outcome}.`
-        }
-      );
-
-      addLog(
-        room,
-        `${player.name} bought Reveal.`
-      );
-    }
-
-
-    else if (name === "Second Chance") {
-
-      player.secondChance = true;
-
-    }
-
-
-    else if (name === "Steal") {
-
-      const target = findPlayer(
-        room,
-        targetId
-      );
-
-      if (!target || !target.alive) {
-        return callback?.({
-          ok: false,
-          error: "Choose a living player."
-        });
-      }
-
-      const amount = Math.min(
-        50,
-        target.cash
-      );
-
-      target.cash -= amount;
-      player.cash += amount;
-
-      addLog(
-        room,
-        `${player.name} used Steal.`
-      );
-    }
-
-
-    else if (name === "Swap") {
-
-      const a = room.boxes.find(
-        b =>
-          b.num === Number(boxA) &&
-          !b.opened
-      );
-
-      const b = room.boxes.find(
-        b =>
-          b.num === Number(boxB) &&
-          !b.opened
-      );
-
-      if (!a || !b || a === b) {
-        return callback?.({
-          ok: false,
-          error:
-            "Choose two different unopened boxes."
-        });
-      }
-
-      [
-        a.outcome,
-        b.outcome
-      ] = [
-        b.outcome,
-        a.outcome
-      ];
-
-      addLog(
-        room,
-        `${player.name} used Swap.`
-      );
-    }
-
-
-    else if (name === "Prediction") {
-
-      const box = room.boxes.find(
-        b =>
-          b.num === Number(boxA) &&
-          !b.opened
-      );
-
-      if (
-        !box ||
-        !["SAFE", "ELIMINATED"].includes(
-          guess
-        )
-      ) {
-        return callback?.({
-          ok: false,
-          error:
-            "Choose a box and prediction."
-        });
-      }
-
-      if (box.outcome === guess) {
-
-        player.cash += 60;
-
-        addLog(
-          room,
-          `🔮 ${player.name} made a correct prediction and gained $60.`
-        );
-
-      } else {
-
-        addLog(
-          room,
-          `🔮 ${player.name} made an incorrect prediction.`
-        );
-      }
-    }
-
-
-    else if (name === "Sabotage") {
-
-      const target = findPlayer(
-        room,
-        targetId
-      );
-
-      if (!target || !target.alive) {
-        return callback?.({
-          ok: false,
-          error: "Choose a living player."
-        });
-      }
-
-      const amount = Math.min(
-        50,
-        target.cash
-      );
-
-      target.cash -= amount;
-
-      addLog(
-        room,
-        `${player.name} used Sabotage.`
-      );
-    }
-
-
-    else if (name === "Royal Assignment") {
-
-      const target = findPlayer(
-        room,
-        targetId
-      );
-
-      if (!target || !target.alive) {
-        return callback?.({
-          ok: false,
-          error: "Choose a living player."
-        });
-      }
-
-      room.turn = room.players.findIndex(
-        p => p.id === target.id
-      );
-
-      addLog(
-        room,
-        `${player.name} assigned ${target.name} to take the next box.`
-      );
-    }
-
-    callback?.({
-      ok: true
-    });
-
-    broadcast(room);
   });
-
 
   socket.on("resetRoom", () => {
-
-    const room = rooms.get(
-      socket.data.room
-    );
-
-    if (!room) return;
-
-    if (room.hostId !== socket.id) {
-      return;
+    for (const [code, room] of rooms.entries()) {
+      if (room.hostId === socket.id) {
+        rooms.delete(code);
+        socket.emit("resetComplete");
+        return;
+      }
     }
-
-    room.status = "lobby";
-    room.boxes = [];
-    room.log = [];
-    room.winner = null;
-
-    room.players.forEach(player => {
-
-      player.cash = 100;
-      player.alive = true;
-      player.powers = [];
-      player.objective = null;
-      player.protection = false;
-      player.secondChance = false;
-
-    });
-
-    broadcast(room);
   });
-
 
   socket.on("disconnect", () => {
+    for (const [code, room] of rooms.entries()) {
+      const index = room.players.findIndex(
+        player => player.id === socket.id
+      );
 
-    const roomCode = socket.data.room;
+      if (index === -1) continue;
 
-    const room = rooms.get(roomCode);
+      const player = room.players[index];
 
-    if (!room) return;
-
-    room.sockets.delete(socket.id);
-
-    if (room.status === "lobby") {
-
-      room.players =
-        room.players.filter(
-          player =>
-            player.id !== socket.id
-        );
-
-      if (room.hostId === socket.id) {
-
-        room.hostId =
-          room.players[0]?.id;
-
+      // In Solo mode, don't destroy the game if the human disconnects.
+      if (room.mode === "solo") {
+        rooms.delete(code);
+        continue;
       }
 
-      broadcast(room);
+      room.players.splice(index, 1);
+
+      addLog(room, `${player.name} left the game.`);
+
+      if (room.hostId === socket.id && room.players.length > 0) {
+        room.hostId = room.players[0].id;
+      }
+
+      emitRoom(room);
+
+      if (room.players.length === 0) {
+        rooms.delete(code);
+      }
+
+      return;
     }
   });
-
 });
 
-
-const PORT =
-  process.env.PORT || 10000;
-
-server.listen(
-  PORT,
-  "0.0.0.0",
-  () => {
-    console.log(
-      `THE BOX running on port ${PORT}`
-    );
-  }
-);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`THE BOX server running on port ${PORT}`);
+});
