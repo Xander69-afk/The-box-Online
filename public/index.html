@@ -1,20 +1,14 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>THE BOX</title>
-
   <script src="/socket.io/socket.io.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -23,11 +17,7 @@
       color: white;
     }
 
-    button,
-    input,
-    select {
-      font: inherit;
-    }
+    button, input, select { font: inherit; }
 
     .container {
       width: min(1200px, 94%);
@@ -49,13 +39,8 @@
       margin-bottom: 25px;
     }
 
-    .screen {
-      display: none;
-    }
-
-    .screen.active {
-      display: block;
-    }
+    .screen { display: none; }
+    .screen.active { display: block; }
 
     .card {
       background: #191919;
@@ -70,8 +55,7 @@
       margin: 40px auto;
     }
 
-    input,
-    select {
+    input, select {
       width: 100%;
       background: #101010;
       border: 1px solid #444;
@@ -90,30 +74,13 @@
       margin: 4px;
     }
 
-    button:hover {
-      opacity: 0.88;
-    }
+    button:hover { opacity: 0.88; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
 
-    .primary {
-      background: #ffffff;
-      color: #000;
-    }
-
-    .secondary {
-      background: #303030;
-      color: white;
-      border: 1px solid #555;
-    }
-
-    .danger {
-      background: #9b2226;
-      color: white;
-    }
-
-    .success {
-      background: #386641;
-      color: white;
-    }
+    .primary { background: #fff; color: #000; }
+    .secondary { background: #303030; color: white; border: 1px solid #555; }
+    .danger { background: #9b2226; color: white; }
+    .success { background: #386641; color: white; }
 
     .turn-banner {
       text-align: center;
@@ -142,9 +109,7 @@
       background: #252525;
     }
 
-    .your-turn .turn-name {
-      font-size: 36px;
-    }
+    .your-turn .turn-name { font-size: 36px; }
 
     .game-info {
       display: grid;
@@ -241,13 +206,9 @@
       background: #2b2b2b;
     }
 
-    .player.dead {
-      opacity: 0.45;
-    }
+    .player.dead { opacity: 0.45; }
 
-    .player-name {
-      font-weight: 800;
-    }
+    .player-name { font-weight: 800; }
 
     .player-meta {
       font-size: 12px;
@@ -332,6 +293,87 @@
       margin-top: 3px;
     }
 
+    /* ================= DEALS ================= */
+
+    .deal-card {
+      background: #202020;
+      border: 1px solid #3d3d3d;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+
+    .deal-card.pending {
+      border-color: #777;
+    }
+
+    .deal-card.active {
+      border-color: #4c9a62;
+    }
+
+    .deal-card.history {
+      opacity: 0.7;
+    }
+
+    .deal-title {
+      font-weight: 900;
+      margin-bottom: 7px;
+    }
+
+    .deal-details {
+      color: #bbb;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .deal-status {
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: #aaa;
+      margin-bottom: 8px;
+    }
+
+    .deal-buttons {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .deal-buttons button {
+      flex: 1;
+      min-width: 90px;
+      margin: 0;
+      padding: 9px;
+      font-size: 12px;
+    }
+
+    .deal-empty {
+      color: #777;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .deal-section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #999;
+      margin: 15px 0 8px;
+    }
+
+    .deal-notice {
+      background: #252525;
+      border: 1px solid #555;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: #bbb;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
     .game-over {
       text-align: center;
       padding: 30px;
@@ -357,14 +399,10 @@
       margin: 15px 0;
     }
 
-    .hidden {
-      display: none !important;
-    }
+    .hidden { display: none !important; }
 
     @media (max-width: 800px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
+      .layout { grid-template-columns: 1fr; }
 
       .game-info {
         grid-template-columns: repeat(3, 1fr);
@@ -375,25 +413,18 @@
         gap: 7px;
       }
 
-      .box {
-        font-size: 18px;
-      }
+      .box { font-size: 18px; }
     }
 
     @media (max-width: 500px) {
-      .title {
-        font-size: 32px;
-      }
+      .title { font-size: 32px; }
 
-      .turn-name {
-        font-size: 24px;
-      }
+      .turn-name { font-size: 24px; }
 
-      .your-turn .turn-name {
-        font-size: 28px;
-      }
+      .your-turn .turn-name { font-size: 28px; }
     }
   </style>
+
 </head>
 
 <body>
@@ -401,6 +432,7 @@
 <div class="container">
 
   <div class="title">THE BOX</div>
+
   <div class="subtitle">
     Trust. Risk. Deception. Survival.
   </div>
@@ -409,59 +441,61 @@
 
   <div id="menuScreen" class="screen active">
 
-    <div class="card menu">
+```
+<div class="card menu">
 
-      <h2>Play THE BOX</h2>
+  <h2>Play THE BOX</h2>
 
-      <input
-        id="nameInput"
-        type="text"
-        placeholder="Your name"
-        maxlength="20"
-      >
+  <input
+    id="nameInput"
+    type="text"
+    placeholder="Your name"
+    maxlength="20"
+  >
 
-      <button
-        id="soloButton"
-        class="primary"
-        style="width:100%;"
-      >
-        SOLO TEST
-      </button>
+  <button
+    id="soloButton"
+    class="primary"
+    style="width:100%;"
+  >
+    SOLO TEST
+  </button>
 
-      <select id="npcCount">
-        <option value="3">4 Players — You + 3 NPCs</option>
-        <option value="7">8 Players — You + 7 NPCs</option>
-        <option value="11">12 Players — You + 11 NPCs</option>
-        <option value="15">16 Players — You + 15 NPCs</option>
-      </select>
+  <select id="npcCount">
+    <option value="3">4 Players — You + 3 NPCs</option>
+    <option value="7">8 Players — You + 7 NPCs</option>
+    <option value="11">12 Players — You + 11 NPCs</option>
+    <option value="15">16 Players — You + 15 NPCs</option>
+  </select>
 
-      <hr style="border-color:#333;margin:20px 0;">
+  <hr style="border-color:#333;margin:20px 0;">
 
-      <button
-        id="createButton"
-        class="secondary"
-        style="width:100%;"
-      >
-        CREATE ONLINE ROOM
-      </button>
+  <button
+    id="createButton"
+    class="secondary"
+    style="width:100%;"
+  >
+    CREATE ONLINE ROOM
+  </button>
 
-      <input
-        id="roomCodeInput"
-        type="text"
-        placeholder="Room code"
-        maxlength="5"
-        style="margin-top:10px;"
-      >
+  <input
+    id="roomCodeInput"
+    type="text"
+    placeholder="Room code"
+    maxlength="5"
+    style="margin-top:10px;"
+  >
 
-      <button
-        id="joinButton"
-        class="secondary"
-        style="width:100%;"
-      >
-        JOIN ONLINE ROOM
-      </button>
+  <button
+    id="joinButton"
+    class="secondary"
+    style="width:100%;"
+  >
+    JOIN ONLINE ROOM
+  </button>
 
-    </div>
+</div>
+```
 
   </div>
 
@@ -469,32 +503,34 @@
 
   <div id="lobbyScreen" class="screen">
 
-    <div class="card">
+```
+<div class="card">
 
-      <h2>Waiting Room</h2>
+  <h2>Waiting Room</h2>
 
-      <div class="room-code" id="roomCodeDisplay">
-        -----
-      </div>
+  <div class="room-code" id="roomCodeDisplay">
+    -----
+  </div>
 
-      <p style="text-align:center;color:#aaa;">
-        Share this room code with your friends.
-      </p>
+  <p style="text-align:center;color:#aaa;">
+    Share this room code with your friends.
+  </p>
 
-      <div id="lobbyPlayers"></div>
+  <div id="lobbyPlayers"></div>
 
-      <div style="text-align:center;margin-top:20px;">
+  <div style="text-align:center;margin-top:20px;">
 
-        <button
-          id="startButton"
-          class="primary"
-        >
-          START GAME
-        </button>
+    <button
+      id="startButton"
+      class="primary"
+    >
+      START GAME
+    </button>
 
-      </div>
+  </div>
 
-    </div>
+</div>
+```
 
   </div>
 
@@ -502,162 +538,271 @@
 
   <div id="gameScreen" class="screen">
 
+```
+<div
+  id="turnBanner"
+  class="turn-banner"
+>
+
+  <div class="turn-label">
+    Current Turn
+  </div>
+
+  <div
+    id="turnName"
+    class="turn-name"
+  >
+    Waiting...
+  </div>
+
+</div>
+
+<div class="game-info">
+
+  <div class="stat">
+    <div class="stat-label">
+      Players Alive
+    </div>
+
     <div
-      id="turnBanner"
-      class="turn-banner"
+      id="aliveCount"
+      class="stat-value"
     >
-      <div class="turn-label">
-        Current Turn
-      </div>
+      -
+    </div>
+  </div>
+
+  <div class="stat">
+    <div class="stat-label">
+      Boxes Remaining
+    </div>
+
+    <div
+      id="boxesRemaining"
+      class="stat-value"
+    >
+      -
+    </div>
+  </div>
+
+  <div class="stat">
+    <div class="stat-label">
+      Your Cash
+    </div>
+
+    <div
+      id="cashDisplay"
+      class="stat-value"
+    >
+      $0
+    </div>
+  </div>
+
+</div>
+
+<div class="layout">
+
+  <!-- ================= MAIN ================= -->
+
+  <div>
+
+    <div class="card">
+
+      <h2>Choose a Box</h2>
+
+      <p
+        id="boxInstruction"
+        style="color:#aaa;"
+      >
+        Waiting for your turn...
+      </p>
 
       <div
-        id="turnName"
-        class="turn-name"
+        id="boxes"
+        class="boxes"
+      ></div>
+
+    </div>
+
+    <!-- ================= DEALS ================= -->
+
+    <div class="card">
+
+      <h2>🤝 Deals</h2>
+
+      <div class="deal-notice">
+        Deals are promises between players. Money is transferred when a deal is accepted. Protection agreements are promises and may be honored or broken later.
+      </div>
+
+      <button
+        id="makeDealButton"
+        class="primary"
+        style="width:100%;margin:0 0 12px 0;"
       >
-        Waiting...
-      </div>
-    </div>
+        🤝 MAKE A DEAL
+      </button>
 
-    <div class="game-info">
+      <div id="dealForm" class="hidden">
 
-      <div class="stat">
-        <div class="stat-label">
-          Players Alive
-        </div>
+        <h3>Propose a Deal</h3>
 
-        <div
-          id="aliveCount"
-          class="stat-value"
-        >
-          -
-        </div>
-      </div>
+        <label style="color:#aaa;font-size:12px;">
+          Who do you want to deal with?
+        </label>
 
-      <div class="stat">
-        <div class="stat-label">
-          Boxes Remaining
-        </div>
+        <select id="dealTarget"></select>
 
-        <div
-          id="boxesRemaining"
-          class="stat-value"
-        >
-          -
-        </div>
-      </div>
+        <label style="color:#aaa;font-size:12px;">
+          What are you offering?
+        </label>
 
-      <div class="stat">
-        <div class="stat-label">
-          Your Cash
-        </div>
+        <select id="dealOfferType">
+          <option value="money">Money</option>
+          <option value="protection">Protection</option>
+        </select>
 
-        <div
-          id="cashDisplay"
-          class="stat-value"
-        >
-          $0
-        </div>
-      </div>
-
-    </div>
-
-    <div class="layout">
-
-      <!-- MAIN -->
-
-      <div>
-
-        <div class="card">
-
-          <h2>Choose a Box</h2>
-
-          <p
-            id="boxInstruction"
-            style="color:#aaa;"
-          >
-            Waiting for your turn...
-          </p>
-
-          <div
-            id="boxes"
-            class="boxes"
-          ></div>
-
-        </div>
-
-        <div
-          id="gameOverCard"
-          class="card game-over hidden"
+        <input
+          id="dealOfferAmount"
+          type="number"
+          min="1"
+          placeholder="Amount of money"
         >
 
-          <h2>GAME OVER</h2>
+        <label style="color:#aaa;font-size:12px;">
+          What are you asking for?
+        </label>
 
-          <p id="gameOverText"></p>
+        <select id="dealRequestType">
+          <option value="nothing">Nothing</option>
+          <option value="money">Money</option>
+          <option value="protection">Protection</option>
+        </select>
+
+        <input
+          id="dealRequestAmount"
+          type="number"
+          min="1"
+          placeholder="Amount requested"
+        >
+
+        <div class="deal-buttons">
 
           <button
-            id="playAgainButton"
-            class="play-again"
+            id="sendDealButton"
+            class="success"
           >
-            PLAY AGAIN
+            SEND PROPOSAL
+          </button>
+
+          <button
+            id="cancelDealButton"
+            class="secondary"
+          >
+            CANCEL
           </button>
 
         </div>
 
-        <div class="card">
-
-          <h2>Game Log</h2>
-
-          <div
-            id="gameLog"
-            class="log"
-          ></div>
-
-        </div>
-
       </div>
 
-      <!-- SIDEBAR -->
+      <div class="deal-section-title">
+        Incoming Proposals
+      </div>
 
-      <div>
+      <div id="incomingDeals"></div>
 
-        <div class="card">
+      <div class="deal-section-title">
+        Active Deals
+      </div>
 
-          <h2>Players</h2>
+      <div id="activeDeals"></div>
 
-          <div
-            id="players"
-            class="players"
-          ></div>
+      <div class="deal-section-title">
+        Deal History
+      </div>
 
-        </div>
+      <div id="dealHistory"></div>
 
-        <div class="card">
+    </div>
 
-          <h2>Your Objective</h2>
+    <!-- ================= GAME OVER ================= -->
 
-          <div
-            id="objective"
-            class="objective"
-          >
-            Waiting...
-          </div>
+    <div
+      id="gameOverCard"
+      class="card game-over hidden"
+    >
 
-        </div>
+      <h2>GAME OVER</h2>
 
-        <div class="card">
+      <p id="gameOverText"></p>
 
-          <h2>Power Store</h2>
+      <button
+        id="playAgainButton"
+        class="play-again"
+      >
+        PLAY AGAIN
+      </button>
 
-          <div
-            id="powerGrid"
-            class="power-grid"
-          ></div>
+    </div>
 
-        </div>
+    <!-- ================= LOG ================= -->
 
+    <div class="card">
+
+      <h2>Game Log</h2>
+
+      <div
+        id="gameLog"
+        class="log"
+      ></div>
+
+    </div>
+
+  </div>
+
+  <!-- ================= SIDEBAR ================= -->
+
+  <div>
+
+    <div class="card">
+
+      <h2>Players</h2>
+
+      <div
+        id="players"
+        class="players"
+      ></div>
+
+    </div>
+
+    <div class="card">
+
+      <h2>Your Objective</h2>
+
+      <div
+        id="objective"
+        class="objective"
+      >
+        Waiting...
       </div>
 
     </div>
+
+    <div class="card">
+
+      <h2>Power Store</h2>
+
+      <div
+        id="powerGrid"
+        class="power-grid"
+      ></div>
+
+    </div>
+
+  </div>
+
+</div>
+```
 
   </div>
 
@@ -715,16 +860,45 @@ const startButton =
 const playAgainButton =
   document.getElementById("playAgainButton");
 
+const makeDealButton =
+  document.getElementById("makeDealButton");
+
+const dealForm =
+  document.getElementById("dealForm");
+
+const dealTarget =
+  document.getElementById("dealTarget");
+
+const dealOfferType =
+  document.getElementById("dealOfferType");
+
+const dealOfferAmount =
+  document.getElementById("dealOfferAmount");
+
+const dealRequestType =
+  document.getElementById("dealRequestType");
+
+const dealRequestAmount =
+  document.getElementById("dealRequestAmount");
+
+const sendDealButton =
+  document.getElementById("sendDealButton");
+
+const cancelDealButton =
+  document.getElementById("cancelDealButton");
+
+/* ================= SCREEN ================= */
+
 function showScreen(screen) {
 
   menuScreen.classList.remove("active");
-
   lobbyScreen.classList.remove("active");
-
   gameScreen.classList.remove("active");
 
   screen.classList.add("active");
 }
+
+/* ================= PLAYER ================= */
 
 function getPlayer() {
 
@@ -733,11 +907,8 @@ function getPlayer() {
   }
 
   return currentState.players.find(
-    function (player) {
-      return (
-        player.id ===
-        currentState.you.id
-      );
+    function(player) {
+      return player.id === currentState.you.id;
     }
   );
 }
@@ -746,7 +917,7 @@ function getPlayer() {
 
 soloButton.addEventListener(
   "click",
-  function () {
+  function() {
 
     const name =
       nameInput.value.trim();
@@ -760,8 +931,7 @@ soloButton.addEventListener(
       "createSolo",
       {
         name: name,
-        npcCount:
-          Number(npcCount.value)
+        npcCount: Number(npcCount.value)
       }
     );
   }
@@ -771,7 +941,7 @@ soloButton.addEventListener(
 
 createButton.addEventListener(
   "click",
-  function () {
+  function() {
 
     const name =
       nameInput.value.trim();
@@ -794,7 +964,7 @@ createButton.addEventListener(
 
 joinButton.addEventListener(
   "click",
-  function () {
+  function() {
 
     const name =
       nameInput.value.trim();
@@ -828,7 +998,7 @@ joinButton.addEventListener(
 
 startButton.addEventListener(
   "click",
-  function () {
+  function() {
     socket.emit("startGame");
   }
 );
@@ -837,25 +1007,531 @@ startButton.addEventListener(
 
 playAgainButton.addEventListener(
   "click",
-  function () {
+  function() {
     socket.emit("playAgain");
   }
 );
 
-/* ================= ERROR ================= */
+/* ================= DEAL FORM ================= */
 
-socket.on(
-  "errorMessage",
-  function (message) {
-    alert(message);
+makeDealButton.addEventListener(
+  "click",
+  function() {
+
+    if (!currentState || currentState.finished) {
+      return;
+    }
+
+    populateDealTargets();
+
+    dealForm.classList.remove("hidden");
+
+    updateDealInputs();
   }
 );
+
+cancelDealButton.addEventListener(
+  "click",
+  function() {
+
+    dealForm.classList.add("hidden");
+  }
+);
+
+dealOfferType.addEventListener(
+  "change",
+  updateDealInputs
+);
+
+dealRequestType.addEventListener(
+  "change",
+  updateDealInputs
+);
+
+function updateDealInputs() {
+
+  dealOfferAmount.style.display =
+    dealOfferType.value === "money"
+      ? "block"
+      : "none";
+
+  dealRequestAmount.style.display =
+    dealRequestType.value === "money"
+      ? "block"
+      : "none";
+}
+
+/* ================= DEAL TARGETS ================= */
+
+function populateDealTargets() {
+
+  dealTarget.innerHTML = "";
+
+  if (!currentState) {
+    return;
+  }
+
+  const availablePlayers =
+    currentState.players.filter(
+      function(player) {
+
+        return (
+          player.id !== currentState.you.id &&
+          player.alive
+        );
+      }
+    );
+
+  if (availablePlayers.length === 0) {
+
+    const option =
+      document.createElement("option");
+
+    option.textContent =
+      "No available players";
+
+    option.value = "";
+
+    dealTarget.appendChild(option);
+
+    return;
+  }
+
+  availablePlayers.forEach(
+    function(player) {
+
+      const option =
+        document.createElement("option");
+
+      option.value =
+        player.id;
+
+      option.textContent =
+        player.name +
+        (player.isNPC
+          ? " — " + (player.personality || "NPC")
+          : "");
+
+      dealTarget.appendChild(option);
+    }
+  );
+}
+
+/* ================= SEND DEAL ================= */
+
+sendDealButton.addEventListener(
+  "click",
+  function() {
+
+    if (!currentState) {
+      return;
+    }
+
+    const targetId =
+      dealTarget.value;
+
+    if (!targetId) {
+      alert("Choose a player.");
+      return;
+    }
+
+    const offerType =
+      dealOfferType.value;
+
+    const requestType =
+      dealRequestType.value;
+
+    let offerAmount = null;
+    let requestAmount = null;
+
+    if (offerType === "money") {
+
+      offerAmount =
+        Number(dealOfferAmount.value);
+
+      if (
+        !Number.isFinite(offerAmount) ||
+        offerAmount <= 0
+      ) {
+        alert("Enter a valid amount to offer.");
+        return;
+      }
+
+      if (
+        offerAmount >
+        currentState.you.cash
+      ) {
+        alert("You don't have enough cash.");
+        return;
+      }
+    }
+
+    if (requestType === "money") {
+
+      requestAmount =
+        Number(dealRequestAmount.value);
+
+      if (
+        !Number.isFinite(requestAmount) ||
+        requestAmount <= 0
+      ) {
+        alert("Enter a valid amount to request.");
+        return;
+      }
+    }
+
+    socket.emit(
+      "makeDeal",
+      {
+        recipientId: targetId,
+
+        offer: {
+          type: offerType,
+          amount: offerAmount
+        },
+
+        request: {
+          type: requestType,
+          amount: requestAmount
+        }
+      }
+    );
+
+    dealForm.classList.add("hidden");
+
+    dealOfferAmount.value = "";
+    dealRequestAmount.value = "";
+  }
+);
+
+/* ================= ACCEPT / DECLINE ================= */
+
+function acceptDeal(id) {
+
+  socket.emit(
+    "acceptDeal",
+    {
+      dealId: id
+    }
+  );
+}
+
+function declineDeal(id) {
+
+  socket.emit(
+    "declineDeal",
+    {
+      dealId: id
+    }
+  );
+}
+
+/* ================= DEAL DESCRIPTION ================= */
+
+function describeDeal(deal) {
+
+  if (!deal) {
+    return "";
+  }
+
+  const proposer =
+    findPlayerName(deal.proposerId);
+
+  const recipient =
+    findPlayerName(deal.recipientId);
+
+  const offer =
+    describeDealPart(deal.offer, true);
+
+  const request =
+    describeDealPart(deal.request, false);
+
+  return (
+    "<strong>" +
+    escapeHtml(proposer) +
+    "</strong> offers " +
+    escapeHtml(offer) +
+    " to " +
+    "<strong>" +
+    escapeHtml(recipient) +
+    "</strong>" +
+    " in exchange for " +
+    escapeHtml(request) +
+    "."
+  );
+}
+
+function describeDealPart(part, isOffer) {
+
+  if (!part) {
+    return "nothing";
+  }
+
+  if (part.type === "money") {
+
+    return "$" +
+      Number(part.amount || 0) +
+      " cash";
+  }
+
+  if (part.type === "protection") {
+    return "protection";
+  }
+
+  return "nothing";
+}
+
+function findPlayerName(id) {
+
+  if (!currentState) {
+    return "Unknown";
+  }
+
+  const player =
+    currentState.players.find(
+      function(p) {
+        return p.id === id;
+      }
+    );
+
+  return player
+    ? player.name
+    : "Unknown";
+}
+
+/* ================= RENDER DEALS ================= */
+
+function renderDeals() {
+
+  if (!currentState) {
+    return;
+  }
+
+  renderIncomingDeals();
+
+  renderActiveDeals();
+
+  renderDealHistory();
+}
+
+function renderIncomingDeals() {
+
+  const container =
+    document.getElementById(
+      "incomingDeals"
+    );
+
+  container.innerHTML = "";
+
+  const deals =
+    currentState.deals || [];
+
+  const incoming =
+    deals.filter(
+      function(deal) {
+
+        return (
+          deal.recipientId === currentState.you.id &&
+          deal.status === "pending"
+        );
+      }
+    );
+
+  if (incoming.length === 0) {
+
+    container.innerHTML =
+      "<div class='deal-empty'>" +
+      "No pending proposals." +
+      "</div>";
+
+    return;
+  }
+
+  incoming.forEach(
+    function(deal) {
+
+      const card =
+        document.createElement("div");
+
+      card.className =
+        "deal-card pending";
+
+      card.innerHTML =
+        "<div class='deal-title'>" +
+          "🤝 Proposal from " +
+          escapeHtml(
+            findPlayerName(deal.proposerId)
+          ) +
+        "</div>" +
+
+        "<div class='deal-details'>" +
+          describeDeal(deal) +
+        "</div>" +
+
+        "<div class='deal-buttons'>" +
+
+          "<button " +
+            "class='success' " +
+            "onclick=\"acceptDeal('" +
+            escapeHtml(deal.id) +
+            "')\">" +
+            "ACCEPT" +
+          "</button>" +
+
+          "<button " +
+            "class='danger' " +
+            "onclick=\"declineDeal('" +
+            escapeHtml(deal.id) +
+            "')\">" +
+            "DECLINE" +
+          "</button>" +
+
+        "</div>";
+
+      container.appendChild(card);
+    }
+  );
+}
+
+function renderActiveDeals() {
+
+  const container =
+    document.getElementById(
+      "activeDeals"
+    );
+
+  container.innerHTML = "";
+
+  const deals =
+    currentState.deals || [];
+
+  const active =
+    deals.filter(
+      function(deal) {
+
+        return (
+          deal.status === "accepted" &&
+          (
+            deal.proposerId === currentState.you.id ||
+            deal.recipientId === currentState.you.id
+          )
+        );
+      }
+    );
+
+  if (active.length === 0) {
+
+    container.innerHTML =
+      "<div class='deal-empty'>" +
+      "You have no active deals." +
+      "</div>";
+
+    return;
+  }
+
+  active.forEach(
+    function(deal) {
+
+      const card =
+        document.createElement("div");
+
+      card.className =
+        "deal-card active";
+
+      card.innerHTML =
+        "<div class='deal-title'>" +
+          "ACTIVE DEAL" +
+        "</div>" +
+
+        "<div class='deal-details'>" +
+          describeDeal(deal) +
+        "</div>" +
+
+        "<div class='deal-status'>" +
+          "Accepted" +
+        "</div>";
+
+      container.appendChild(card);
+    }
+  );
+}
+
+function renderDealHistory() {
+
+  const container =
+    document.getElementById(
+      "dealHistory"
+    );
+
+  container.innerHTML = "";
+
+  const deals =
+    currentState.deals || [];
+
+  const history =
+    deals.filter(
+      function(deal) {
+
+        return (
+          deal.status !== "pending" &&
+          deal.status !== "accepted" &&
+          (
+            deal.proposerId === currentState.you.id ||
+            deal.recipientId === currentState.you.id
+          )
+        );
+      }
+    );
+
+  if (history.length === 0) {
+
+    container.innerHTML =
+      "<div class='deal-empty'>" +
+      "No completed deals yet." +
+      "</div>";
+
+    return;
+  }
+
+  history.slice().reverse().forEach(
+    function(deal) {
+
+      const card =
+        document.createElement("div");
+
+      card.className =
+        "deal-card history";
+
+      let status =
+        String(deal.status || "")
+          .toUpperCase();
+
+      card.innerHTML =
+        "<div class='deal-title'>" +
+          status +
+        "</div>" +
+
+        "<div class='deal-details'>" +
+          describeDeal(deal) +
+        "</div>";
+
+      container.appendChild(card);
+    }
+  );
+}
 
 /* ================= STATE ================= */
 
 socket.on(
+  "errorMessage",
+  function(message) {
+    alert(message);
+  }
+);
+
+socket.on(
   "state",
-  function (state) {
+  function(state) {
 
     currentState = state;
 
@@ -891,24 +1567,30 @@ function renderLobby() {
   container.innerHTML = "";
 
   currentState.players.forEach(
-    function (player) {
+    function(player) {
 
       const div =
         document.createElement("div");
 
-      div.className = "player";
+      div.className =
+        "player";
 
       div.innerHTML =
         "<div>" +
+
           "<div class='player-name'>" +
             escapeHtml(player.name) +
           "</div>" +
+
           "<div class='player-meta'>" +
-            (player.id ===
-            currentState.players[0].id
-              ? "Host"
-              : "Player") +
+            (
+              player.id ===
+              currentState.players[0].id
+                ? "Host"
+                : "Player"
+            ) +
           "</div>" +
+
         "</div>";
 
       container.appendChild(div);
@@ -932,6 +1614,8 @@ function renderGame() {
 
   renderPowers();
 
+  renderDeals();
+
   renderLog();
 
   renderGameOver();
@@ -943,7 +1627,7 @@ function renderTurn() {
 
   const turnPlayer =
     currentState.players.find(
-      function (player) {
+      function(player) {
         return (
           player.id ===
           currentState.currentTurn
@@ -1045,7 +1729,7 @@ function renderBoxes() {
     currentState.you.id;
 
   currentState.boxes.forEach(
-    function (box) {
+    function(box) {
 
       const button =
         document.createElement("button");
@@ -1062,15 +1746,15 @@ function renderBoxes() {
           "opened"
         );
 
-        if (
-          box.result === "SAFE"
-        ) {
+        if (box.result === "SAFE") {
+
           button.classList.add(
             "safe"
           );
 
           button.textContent =
             "✓";
+
         } else {
 
           button.classList.add(
@@ -1089,7 +1773,7 @@ function renderBoxes() {
 
         button.addEventListener(
           "click",
-          function () {
+          function() {
 
             socket.emit(
               "openBox",
@@ -1103,6 +1787,7 @@ function renderBoxes() {
       }
 
       if (box.isGolden) {
+
         button.classList.add(
           "golden"
         );
@@ -1127,7 +1812,7 @@ function renderPlayers() {
   container.innerHTML = "";
 
   currentState.players.forEach(
-    function (player, index) {
+    function(player, index) {
 
       const div =
         document.createElement("div");
@@ -1156,6 +1841,7 @@ function renderPlayers() {
         player.id ===
         currentState.currentTurn
       ) {
+
         badges +=
           "<span class='badge turn-badge'>" +
           "TURN" +
@@ -1166,6 +1852,7 @@ function renderPlayers() {
         player.id ===
         currentState.you.id
       ) {
+
         badges +=
           "<span class='badge'>" +
           "YOU" +
@@ -1173,6 +1860,7 @@ function renderPlayers() {
       }
 
       if (!player.alive) {
+
         badges +=
           "<span class='badge dead-badge'>" +
           "OUT" +
@@ -1185,6 +1873,7 @@ function renderPlayers() {
           : "Human";
 
       div.innerHTML =
+
         "<div>" +
 
           "<div class='player-name'>" +
@@ -1205,9 +1894,7 @@ function renderPlayers() {
           player.cash +
         "</div>";
 
-      container.appendChild(
-        div
-      );
+      container.appendChild(div);
     }
   );
 }
@@ -1249,7 +1936,7 @@ function renderPowers() {
   container.innerHTML = "";
 
   POWER_NAMES.forEach(
-    function (power) {
+    function(power) {
 
       const button =
         document.createElement("button");
@@ -1269,7 +1956,7 @@ function renderPowers() {
 
       button.addEventListener(
         "click",
-        function () {
+        function() {
 
           socket.emit(
             "buyPower",
@@ -1302,7 +1989,7 @@ function renderLog() {
     .slice()
     .reverse()
     .forEach(
-      function (message) {
+      function(message) {
 
         const div =
           document.createElement(
@@ -1346,7 +2033,7 @@ function renderGameOver() {
 
   const survivors =
     currentState.players.filter(
-      function (player) {
+      function(player) {
         return player.alive;
       }
     );
