@@ -2,6 +2,7 @@ const path = require("path");
 const http = require("http");
 const express = require("express");
 const { Server } = require("socket.io");
+const crypto = require("crypto");
 
 const app = express();
 const server = http.createServer(app);
@@ -13,40 +14,97 @@ const PORT = process.env.PORT || 10000;
 
 const rooms = new Map();
 
-/*
-=========================================================
-THE BOX — CORE RULE
+/* =========================================================
+   THE BOX
+   16 BOXES
+   11 SAFE
+   5 ELIMINATED
 
-Every new game receives a completely fresh hidden board.
-
-There are ALWAYS:
-11 SAFE boxes
-5 ELIMINATED boxes
-
-The results are randomly shuffled among boxes 1–16.
-
-NPCs NEVER receive the hidden results of unopened boxes.
-They only know what a normal player could know.
-=========================================================
-*/
+   Every new game gets a completely fresh random board.
+   NPCs never receive hidden box results.
+========================================================= */
 
 const OBJECTIVES = [
-  { name: "NEGOTIATOR", text: "Make 3 deals with different players; at least 1 honored.", reward: 100 },
-  { name: "CON ARTIST", text: "Successfully deceive another player about your objective.", reward: 120 },
-  { name: "DIPLOMAT", text: "Have 2 players voluntarily defend or protect you.", reward: 100 },
-  { name: "RISK TAKER", text: "Choose 3 unopened boxes and survive the third.", reward: 100 },
-  { name: "PROPHET", text: "Make 2 correct predictions.", reward: 120 },
-  { name: "KINGMAKER", text: "Cause another player to gain $100 through your actions.", reward: 100 },
-  { name: "SURVIVOR", text: "Survive 4 box-opening rounds.", reward: 120 },
-  { name: "DEALER", text: "Exchange money with 3 different players.", reward: 100 },
-  { name: "INFLUENCER", text: "Get 2 players to support your decision.", reward: 100 },
-  { name: "GAMBLER", text: "Spend at least $120 in the Power Store and survive.", reward: 120 },
-  { name: "GUARDIAN", text: "Use Protection on another player.", reward: 100 },
-  { name: "SCOUT", text: "Correctly identify 2 safe boxes before they open.", reward: 120 },
-  { name: "SABOTEUR", text: "Cause another player to lose money through your action.", reward: 100 },
-  { name: "LOYALIST", text: "Honor 2 separate deals.", reward: 120 },
-  { name: "SECRET KEEPER", text: "Keep your objective undisclosed until the final round.", reward: 120 },
-  { name: "OPPORTUNIST", text: "Be last player to spend money in the store.", reward: 100 }
+  {
+    name: "NEGOTIATOR",
+    text: "Make 3 deals with different players; at least 1 honored.",
+    reward: 100
+  },
+  {
+    name: "CON ARTIST",
+    text: "Successfully deceive another player about your objective.",
+    reward: 120
+  },
+  {
+    name: "DIPLOMAT",
+    text: "Have 2 players voluntarily defend or protect you.",
+    reward: 100
+  },
+  {
+    name: "RISK TAKER",
+    text: "Choose 3 unopened boxes and survive the third.",
+    reward: 100
+  },
+  {
+    name: "PROPHET",
+    text: "Make 2 correct predictions.",
+    reward: 120
+  },
+  {
+    name: "KINGMAKER",
+    text: "Cause another player to gain $100 through your actions.",
+    reward: 100
+  },
+  {
+    name: "SURVIVOR",
+    text: "Survive 4 box-opening rounds.",
+    reward: 120
+  },
+  {
+    name: "DEALER",
+    text: "Exchange money with 3 different players.",
+    reward: 100
+  },
+  {
+    name: "INFLUENCER",
+    text: "Get 2 players to support your decision.",
+    reward: 100
+  },
+  {
+    name: "GAMBLER",
+    text: "Spend at least $120 in Power Store and survive.",
+    reward: 120
+  },
+  {
+    name: "GUARDIAN",
+    text: "Use Protection on another player.",
+    reward: 100
+  },
+  {
+    name: "SCOUT",
+    text: "Correctly identify 2 safe boxes before they open.",
+    reward: 120
+  },
+  {
+    name: "SABOTEUR",
+    text: "Cause another player to lose money through your action.",
+    reward: 100
+  },
+  {
+    name: "LOYALIST",
+    text: "Honor 2 separate deals.",
+    reward: 120
+  },
+  {
+    name: "SECRET KEEPER",
+    text: "Keep objective undisclosed until final round.",
+    reward: 120
+  },
+  {
+    name: "OPPORTUNIST",
+    text: "Be last player to spend money in store.",
+    reward: 100
+  }
 ];
 
 const POWER_DEFINITIONS = {
@@ -54,131 +112,134 @@ const POWER_DEFINITIONS = {
     cost: 60,
     description: "Protect another player from one elimination."
   },
+
   Reveal: {
     cost: 60,
     description: "Reveal whether an unopened box is SAFE or ELIMINATED."
   },
+
   "Second Chance": {
     cost: 60,
     description: "Survive one elimination."
   },
+
   Steal: {
     cost: 60,
     description: "Steal $50 from another player."
   },
+
   Swap: {
     cost: 60,
     description: "Swap your chosen box with another unopened box."
   },
+
   Prediction: {
     cost: 60,
     description: "Predict whether a chosen box is SAFE or ELIMINATED."
   },
+
   Sabotage: {
     cost: 60,
     description: "Cause another player to lose $50."
   },
+
   "Royal Assignment": {
     cost: 60,
     description: "Choose who must open the next box."
   }
 };
 
+/* =========================================================
+   NPC PERSONALITIES
+========================================================= */
+
 const PERSONALITIES = [
   {
     name: "The Gambler",
     style: "risky",
-    riskTolerance: 0.90,
+    riskTolerance: 0.9,
     trust: 0.35,
     aggression: 0.75,
-    greed: 0.80
+    greed: 0.8
   },
+
   {
     name: "The Analyst",
     style: "logical",
     riskTolerance: 0.25,
     trust: 0.55,
     aggression: 0.35,
-    greed: 0.50
+    greed: 0.5
   },
+
   {
     name: "The Opportunist",
     style: "opportunistic",
-    riskTolerance: 0.60,
-    trust: 0.30,
+    riskTolerance: 0.6,
+    trust: 0.3,
     aggression: 0.65,
-    greed: 0.90
+    greed: 0.9
   }
 ];
 
-/*
-=========================================================
-RANDOMIZATION
-=========================================================
-*/
+/* =========================================================
+   RANDOMIZATION
+========================================================= */
 
-/*
-Fisher-Yates shuffle.
-
-This produces a fresh random ordering of the results.
-Box numbers have NO inherent meaning.
-*/
 function shuffle(array) {
   const result = [...array];
 
   for (let i = result.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = crypto.randomInt(0, i + 1);
 
-    [result[i], result[j]] = [result[j], result[i]];
+    const temp = result[i];
+    result[i] = result[j];
+    result[j] = temp;
   }
 
   return result;
 }
 
-/*
-Creates a completely new board.
-
-11 SAFE
-5 ELIMINATED
-
-The hidden results are assigned randomly to boxes.
-*/
 function createBoxes() {
-  const results = [
-    ...Array(11).fill("SAFE"),
-    ...Array(5).fill("ELIMINATED")
-  ];
+  const results = [];
+
+  for (let i = 0; i < 11; i++) {
+    results.push("SAFE");
+  }
+
+  for (let i = 0; i < 5; i++) {
+    results.push("ELIMINATED");
+  }
 
   const randomizedResults = shuffle(results);
 
-  return randomizedResults.map((result, index) => ({
-    number: index + 1,
-    result,
-    opened: false
-  }));
+  return randomizedResults.map(function (result, index) {
+    return {
+      number: index + 1,
+      result: result,
+      opened: false
+    };
+  });
 }
 
-/*
-=========================================================
-GENERAL HELPERS
-=========================================================
-*/
+/* =========================================================
+   HELPERS
+========================================================= */
 
 function randomItem(array) {
+  if (!array.length) {
+    return null;
+  }
+
   return array[Math.floor(Math.random() * array.length)];
 }
 
-function createPlayer(
-  id,
-  name,
-  isNPC = false,
-  personality = null
-) {
+function createPlayer(id, name, isNPC, personality) {
   return {
-    id,
-    name,
-    isNPC,
-    personality,
+    id: id,
+    name: name,
+    isNPC: isNPC || false,
+    personality: personality || null,
 
     cash: 100,
     alive: true,
@@ -196,16 +257,6 @@ function createPlayer(
     predictions: [],
     correctPredictions: 0,
 
-    /*
-    Future social-AI system.
-
-    NPCs will eventually remember:
-    - who helped them
-    - who betrayed them
-    - who lied
-    - who honored deals
-    - who they trust
-    */
     relationships: {}
   };
 }
@@ -223,20 +274,36 @@ function generateRoomCode() {
   return code;
 }
 
-/*
-=========================================================
-ROOM CREATION
-=========================================================
-*/
+function addLog(room, message) {
+  room.log.push(message);
+
+  if (room.log.length > 100) {
+    room.log.shift();
+  }
+}
+
+function alivePlayers(room) {
+  return room.players.filter(function (player) {
+    return player.alive;
+  });
+}
+
+function unopenedBoxes(room) {
+  return room.boxes.filter(function (box) {
+    return !box.opened;
+  });
+}
+
+/* =========================================================
+   ROOM CREATION
+========================================================= */
 
 function createRoom(hostId, hostName) {
   const code = generateRoomCode();
 
   const room = {
-    code,
-
-    hostId,
-
+    code: code,
+    hostId: hostId,
     mode: "online",
 
     started: false,
@@ -244,14 +311,10 @@ function createRoom(hostId, hostName) {
 
     goldenBox: Math.floor(Math.random() * 16) + 1,
 
-    /*
-    IMPORTANT:
-    This board is generated once when the game is created.
-    The hidden results are NEVER sent to clients.
-    */
     boxes: createBoxes(),
 
     currentTurn: null,
+    lastNpcIndex: -1,
 
     log: [],
 
@@ -259,7 +322,7 @@ function createRoom(hostId, hostName) {
   };
 
   room.players.push(
-    createPlayer(hostId, hostName)
+    createPlayer(hostId, hostName, false, null)
   );
 
   rooms.set(code, room);
@@ -267,18 +330,12 @@ function createRoom(hostId, hostName) {
   return room;
 }
 
-function createSoloRoom(
-  socketId,
-  playerName,
-  npcCount = 3
-) {
+function createSoloRoom(socketId, playerName, npcCount) {
   const code = generateRoomCode();
 
   const room = {
-    code,
-
+    code: code,
     hostId: socketId,
-
     mode: "solo",
 
     started: true,
@@ -286,12 +343,10 @@ function createSoloRoom(
 
     goldenBox: Math.floor(Math.random() * 16) + 1,
 
-    /*
-    NEW RANDOM BOARD
-    */
     boxes: createBoxes(),
 
     currentTurn: socketId,
+    lastNpcIndex: -1,
 
     log: [],
 
@@ -299,20 +354,30 @@ function createSoloRoom(
   };
 
   room.players.push(
-    createPlayer(
-      socketId,
-      playerName
-    )
+    createPlayer(socketId, playerName, false, null)
   );
 
   for (let i = 0; i < npcCount; i++) {
     const personality =
       PERSONALITIES[i % PERSONALITIES.length];
 
+    const npcId =
+      "npc-" +
+      i +
+      "-" +
+      Date.now() +
+      "-" +
+      Math.random();
+
+    const npcName =
+      personality.name +
+      " " +
+      (i + 1);
+
     room.players.push(
       createPlayer(
-        `npc-${i}-${Date.now()}-${Math.random()}`,
-        `${personality.name} ${i + 1}`,
+        npcId,
+        npcName,
         true,
         personality
       )
@@ -323,43 +388,23 @@ function createSoloRoom(
 
   addLog(
     room,
-    `Solo Test started with ${room.players.length} players.`
+    "Solo Test started with " +
+      room.players.length +
+      " players."
   );
 
   addLog(
     room,
-    "🎲 A completely new hidden board has been generated."
+    "A completely new hidden board has been generated."
   );
 
   return room;
 }
 
-/*
-=========================================================
-GAME STATE
-=========================================================
-*/
+/* =========================================================
+   PUBLIC / PRIVATE STATE
+========================================================= */
 
-function addLog(room, message) {
-  room.log.push(message);
-
-  if (room.log.length > 100) {
-    room.log.shift();
-  }
-}
-
-/*
-PUBLIC STATE
-
-This is extremely important.
-
-Unopened box results are converted to null.
-
-Therefore:
-- human players cannot see them
-- NPC decision systems cannot see them
-- the browser cannot inspect them
-*/
 function getPublicState(room) {
   return {
     code: room.code,
@@ -370,63 +415,65 @@ function getPublicState(room) {
 
     finished: room.finished,
 
-    goldenBox:
-      room.finished
-        ? room.goldenBox
-        : null,
+    goldenBox: room.finished
+      ? room.goldenBox
+      : null,
 
     currentTurn: room.currentTurn,
 
-    boxes: room.boxes.map(box => ({
-      number: box.number,
+    boxes: room.boxes.map(function (box) {
+      return {
+        number: box.number,
 
-      opened: box.opened,
+        opened: box.opened,
 
-      result:
-        box.opened
+        result: box.opened
           ? box.result
           : null,
 
-      isGolden:
-        room.finished
+        isGolden: room.finished
           ? box.number === room.goldenBox
           : false
-    })),
+      };
+    }),
 
-    players: room.players.map(player => ({
-      id: player.id,
+    players: room.players.map(function (player) {
+      return {
+        id: player.id,
 
-      name: player.name,
+        name: player.name,
 
-      isNPC: player.isNPC,
+        isNPC: player.isNPC,
 
-      personality:
-        player.isNPC
-          ? player.personality?.name
+        personality: player.isNPC
+          ? player.personality &&
+            player.personality.name
           : null,
 
-      cash: player.cash,
+        cash: player.cash,
 
-      alive: player.alive,
+        alive: player.alive,
 
-      powers: player.powers,
+        powers: player.powers,
 
-      protection: player.protection,
+        protection: player.protection,
 
-      secondChance: player.secondChance
-    })),
+        secondChance: player.secondChance
+      };
+    }),
 
     log: room.log
   };
 }
 
 function getPrivateState(room, playerId) {
-  const player =
-    room.players.find(
-      p => p.id === playerId
-    );
+  const player = room.players.find(function (p) {
+    return p.id === playerId;
+  });
 
-  if (!player) return null;
+  if (!player) {
+    return null;
+  }
 
   return {
     ...getPublicState(room),
@@ -448,75 +495,54 @@ function getPrivateState(room, playerId) {
 
       objective: player.objective,
 
-      objectiveComplete:
-        player.objectiveComplete,
+      objectiveComplete: player.objectiveComplete,
 
-      boxesOpened:
-        player.boxesOpened,
+      boxesOpened: player.boxesOpened,
 
-      correctPredictions:
-        player.correctPredictions
+      correctPredictions: player.correctPredictions
     }
   };
 }
 
 function emitRoom(room) {
-  for (const player of room.players) {
+  room.players.forEach(function (player) {
     if (!player.isNPC) {
       io.to(player.id).emit(
         "state",
-        getPrivateState(
-          room,
-          player.id
-        )
+        getPrivateState(room, player.id)
       );
     }
-  }
+  });
 }
 
-/*
-=========================================================
-PLAYER / BOX HELPERS
-=========================================================
-*/
-
-function alivePlayers(room) {
-  return room.players.filter(
-    player => player.alive
-  );
-}
-
-function unopenedBoxes(room) {
-  return room.boxes.filter(
-    box => !box.opened
-  );
-}
-
-/*
-=========================================================
-GAME END
-=========================================================
-*/
+/* =========================================================
+   GAME END
+========================================================= */
 
 function finishGame(room) {
-  if (room.finished) return;
+  if (room.finished) {
+    return;
+  }
 
   room.finished = true;
 
-  const survivors =
-    alivePlayers(room);
+  const survivors = alivePlayers(room);
 
   if (survivors.length === 1) {
     addLog(
       room,
-      `🏆 ${survivors[0].name} is the final survivor!`
+      survivors[0].name +
+        " is the final survivor!"
     );
   } else if (survivors.length > 1) {
     addLog(
       room,
-      `🏆 Game finished. Survivors: ${survivors
-        .map(player => player.name)
-        .join(", ")}`
+      "Game finished. Survivors: " +
+        survivors
+          .map(function (player) {
+            return player.name;
+          })
+          .join(", ")
     );
   } else {
     addLog(
@@ -529,16 +555,12 @@ function finishGame(room) {
 }
 
 function checkGameEnd(room) {
-  if (
-    alivePlayers(room).length <= 1
-  ) {
+  if (alivePlayers(room).length <= 1) {
     finishGame(room);
     return true;
   }
 
-  if (
-    unopenedBoxes(room).length === 0
-  ) {
+  if (unopenedBoxes(room).length === 0) {
     finishGame(room);
     return true;
   }
@@ -546,83 +568,39 @@ function checkGameEnd(room) {
   return false;
 }
 
-/*
-=========================================================
-NPC SYSTEM — FOUNDATION
-=========================================================
-*/
-
-/*
-NPCs can ONLY reason from information available
-to an ordinary player.
-
-They cannot access:
-
-box.result
-
-for unopened boxes.
-*/
+/* =========================================================
+   NPC LOGIC
+========================================================= */
 
 function chooseNpcTarget(room, npc) {
-  const candidates =
-    alivePlayers(room).filter(
-      player =>
-        player.id !== npc.id
-    );
+  const candidates = alivePlayers(room).filter(function (player) {
+    return player.id !== npc.id;
+  });
 
   if (!candidates.length) {
     return null;
   }
 
-  /*
-  Analyst:
-  tends to target wealthy players.
-  */
   if (
-    npc.personality?.style ===
-    "logical"
+    npc.personality &&
+    npc.personality.style === "logical"
   ) {
     return candidates
       .slice()
-      .sort(
-        (a, b) =>
-          b.cash - a.cash
-      )[0];
+      .sort(function (a, b) {
+        return b.cash - a.cash;
+      })[0];
   }
 
-  /*
-  Opportunist:
-  random target for now.
-
-  This will later become:
-  - weakest relationship
-  - richest player
-  - biggest threat
-  - easiest betrayal
-  */
   if (
-    npc.personality?.style ===
-    "opportunistic"
+    npc.personality &&
+    npc.personality.style === "opportunistic"
   ) {
-    return randomItem(
-      candidates
-    );
+    return randomItem(candidates);
   }
 
-  /*
-  Gambler:
-  unpredictable.
-  */
-  return randomItem(
-    candidates
-  );
+  return randomItem(candidates);
 }
-
-/*
-=========================================================
-NPC POWER PURCHASING
-=========================================================
-*/
 
 function npcBuyPower(room, npc) {
   if (npc.cash < 60) {
@@ -632,80 +610,64 @@ function npcBuyPower(room, npc) {
   let power;
 
   if (
-    npc.personality?.style ===
-    "risky"
+    npc.personality &&
+    npc.personality.style === "risky"
   ) {
     power =
       Math.random() < 0.5
         ? "Prediction"
         : "Protection";
-  }
-
-  else if (
-    npc.personality?.style ===
-    "logical"
+  } else if (
+    npc.personality &&
+    npc.personality.style === "logical"
   ) {
     power =
       Math.random() < 0.5
         ? "Reveal"
         : "Prediction";
-  }
-
-  else {
+  } else {
     power =
       Math.random() < 0.5
         ? "Steal"
         : "Protection";
   }
 
-  npc.cash -=
-    POWER_DEFINITIONS[power].cost;
+  npc.cash -= POWER_DEFINITIONS[power].cost;
 
   npc.powers.push(power);
 
   addLog(
     room,
-    `${npc.name} bought ${power}.`
+    npc.name +
+      " bought " +
+      power +
+      "."
   );
 
   return true;
 }
-
-/*
-=========================================================
-NPC POWER USE
-=========================================================
-*/
 
 function npcUsePower(room, npc) {
   if (!npc.powers.length) {
     return false;
   }
 
-  const power =
-    randomItem(npc.powers);
+  const power = randomItem(npc.powers);
 
-  const target =
-    chooseNpcTarget(
-      room,
-      npc
-    );
+  const target = chooseNpcTarget(room, npc);
 
   if (
     !target &&
-    [
-      "Protection",
-      "Steal",
-      "Sabotage"
-    ].includes(power)
+    (
+      power === "Protection" ||
+      power === "Steal" ||
+      power === "Sabotage"
+    )
   ) {
     return false;
   }
 
-  if (
-    power === "Protection" &&
-    target
-  ) {
+  if (power === "Protection" && target) {
     target.protection = true;
 
     npc.powers.splice(
@@ -715,21 +677,17 @@ function npcUsePower(room, npc) {
 
     addLog(
       room,
-      `${npc.name} protected ${target.name}.`
+      npc.name +
+        " protected " +
+        target.name +
+        "."
     );
 
     return true;
   }
 
-  if (
-    power === "Steal" &&
-    target
-  ) {
-    const amount =
-      Math.min(
-        50,
-        target.cash
-      );
+  if (power === "Steal" && target) {
+    const amount = Math.min(50, target.cash);
 
     target.cash -= amount;
 
@@ -742,21 +700,19 @@ function npcUsePower(room, npc) {
 
     addLog(
       room,
-      `${npc.name} stole $${amount} from ${target.name}.`
+      npc.name +
+        " stole $" +
+        amount +
+        " from " +
+        target.name +
+        "."
     );
 
     return true;
   }
 
-  if (
-    power === "Sabotage" &&
-    target
-  ) {
-    const amount =
-      Math.min(
-        50,
-        target.cash
-      );
+  if (power === "Sabotage" && target) {
+    const amount = Math.min(50, target.cash);
 
     target.cash -= amount;
 
@@ -767,30 +723,25 @@ function npcUsePower(room, npc) {
 
     addLog(
       room,
-      `${npc.name} sabotaged ${target.name}, costing $${amount}.`
+      npc.name +
+        " sabotaged " +
+        target.name +
+        ", costing $" +
+        amount +
+        "."
     );
 
     return true;
   }
 
-  if (
-    power === "Reveal"
-  ) {
-    const boxes =
-      unopenedBoxes(room);
+  if (power === "Reveal") {
+    const boxes = unopenedBoxes(room);
 
     if (!boxes.length) {
       return false;
     }
 
-    const box =
-      randomItem(boxes);
-
-    /*
-    The NPC learns this information,
-    but it is NOT broadcast as the result
-    of the box.
-    */
+    const box = randomItem(boxes);
 
     npc.lastReveal = {
       boxNumber: box.number,
@@ -804,15 +755,16 @@ function npcUsePower(room, npc) {
 
     addLog(
       room,
-      `${npc.name} used Reveal on Box ${box.number}.`
+      npc.name +
+        " used Reveal on Box " +
+        box.number +
+        "."
     );
 
     return true;
   }
 
-  if (
-    power === "Second Chance"
-  ) {
+  if (power === "Second Chance") {
     npc.secondChance = true;
 
     npc.powers.splice(
@@ -822,7 +774,8 @@ function npcUsePower(room, npc) {
 
     addLog(
       room,
-      `${npc.name} activated Second Chance.`
+      npc.name +
+        " activated Second Chance."
     );
 
     return true;
@@ -831,96 +784,54 @@ function npcUsePower(room, npc) {
   return false;
 }
 
-/*
-=========================================================
-NPC BOX CHOICE
-=========================================================
-*/
-
 function npcChooseBox(room, npc) {
-  const boxes =
-    unopenedBoxes(room);
+  const boxes = unopenedBoxes(room);
 
   if (!boxes.length) {
     return null;
   }
 
-  /*
-  CRITICAL:
-
-  NPC does NOT inspect box.result.
-
-  It only sees box numbers and which boxes
-  have already been opened.
-  */
-
   if (
-    npc.personality?.style ===
-    "risky"
+    npc.personality &&
+    npc.personality.style === "risky"
   ) {
     return randomItem(boxes);
   }
 
   if (
-    npc.personality?.style ===
-    "logical"
+    npc.personality &&
+    npc.personality.style === "logical"
   ) {
-    /*
-    The Analyst chooses based on
-    available public information only.
-
-    There is NO hidden probability
-    attached to individual box numbers.
-    */
-
     return boxes[
-      Math.floor(
-        boxes.length / 2
-      )
+      Math.floor(boxes.length / 2)
     ];
   }
 
   return randomItem(boxes);
 }
 
-/*
-=========================================================
-OPEN BOX
-=========================================================
-*/
+/* =========================================================
+   OPEN BOX
+========================================================= */
 
-function openBox(
-  room,
-  playerId,
-  boxNumber
-) {
+function openBox(room, playerId, boxNumber) {
   if (room.finished) {
     return;
   }
 
-  const player =
-    room.players.find(
-      p => p.id === playerId
-    );
+  const player = room.players.find(function (p) {
+    return p.id === playerId;
+  });
 
-  if (
-    !player ||
-    !player.alive
-  ) {
+  if (!player || !player.alive) {
     return;
   }
 
-  const box =
-    room.boxes.find(
-      b =>
-        b.number ===
-        Number(boxNumber)
-    );
+  const box = room.boxes.find(function (b) {
+    return b.number === Number(boxNumber);
+  });
 
-  if (
-    !box ||
-    box.opened
-  ) {
+  if (!box || box.opened) {
     return;
   }
 
@@ -928,46 +839,44 @@ function openBox(
 
   player.boxesOpened += 1;
 
-  if (
-    box.result === "SAFE"
-  ) {
+  if (box.result === "SAFE") {
     addLog(
       room,
-      `${player.name} opened Box ${box.number}: SAFE.`
+      player.name +
+        " opened Box " +
+        box.number +
+        ": SAFE."
     );
-  }
-
-  else {
-    if (
-      player.protection
-    ) {
-      player.protection =
-        false;
+  } else {
+    if (player.protection) {
+      player.protection = false;
 
       addLog(
         room,
-        `${player.name} opened Box ${box.number}: ELIMINATED — but Protection saved them.`
+        player.name +
+          " opened Box " +
+          box.number +
+          ": ELIMINATED — Protection saved them."
       );
-    }
-
-    else if (
-      player.secondChance
-    ) {
-      player.secondChance =
-        false;
+    } else if (player.secondChance) {
+      player.secondChance = false;
 
       addLog(
         room,
-        `${player.name} opened Box ${box.number}: ELIMINATED — Second Chance saved them.`
+        player.name +
+          " opened Box " +
+          box.number +
+          ": ELIMINATED — Second Chance saved them."
       );
-    }
-
-    else {
+    } else {
       player.alive = false;
 
       addLog(
         room,
-        `${player.name} opened Box ${box.number}: ELIMINATED.`
+        player.name +
+          " opened Box " +
+          box.number +
+          ": ELIMINATED."
       );
     }
   }
@@ -977,20 +886,9 @@ function openBox(
   emitRoom(room);
 }
 
-/*
-=========================================================
-NPC TURN ROTATION
-=========================================================
-*/
-
-/*
-Previously the game always selected NPC #1.
-
-Now we rotate through living NPCs.
-
-This matters because the future AI system needs
-each NPC to have its own turn and decisions.
-*/
+/* =========================================================
+   NPC TURN
+========================================================= */
 
 function runNpcTurn(room) {
   if (
@@ -1000,38 +898,30 @@ function runNpcTurn(room) {
     return;
   }
 
-  const npcs =
-    alivePlayers(room)
-      .filter(
-        player => player.isNPC
-      );
+  const npcs = alivePlayers(room).filter(function (player) {
+    return player.isNPC;
+  });
 
   if (!npcs.length) {
     checkGameEnd(room);
     return;
   }
 
-  let index =
-    room.lastNpcIndex ?? -1;
+  let index = room.lastNpcIndex;
 
   let nextNpc = null;
 
-  for (
-    let i = 1;
-    i <= npcs.length;
-    i++
-  ) {
+  for (let i = 1; i <= npcs.length; i++) {
     const candidateIndex =
-      (index + i) %
-      npcs.length;
+      (index + i) % npcs.length;
 
-    const candidate =
-      npcs[candidateIndex];
+    const candidate = npcs[candidateIndex];
 
     if (candidate) {
       nextNpc = candidate;
-      room.lastNpcIndex =
-        candidateIndex;
+
+      room.lastNpcIndex = candidateIndex;
+
       break;
     }
   }
@@ -1042,39 +932,15 @@ function runNpcTurn(room) {
 
   const npc = nextNpc;
 
-  /*
-  NPC may buy a power.
-  */
-  if (
-    Math.random() < 0.35
-  ) {
-    npcBuyPower(
-      room,
-      npc
-    );
+  if (Math.random() < 0.35) {
+    npcBuyPower(room, npc);
   }
 
-  /*
-  NPC may use a power.
-  */
-  if (
-    Math.random() < 0.35
-  ) {
-    npcUsePower(
-      room,
-      npc
-    );
+  if (Math.random() < 0.35) {
+    npcUsePower(room, npc);
   }
 
-  /*
-  NPC chooses a box without seeing
-  its hidden result.
-  */
-  const box =
-    npcChooseBox(
-      room,
-      npc
-    );
+  const box = npcChooseBox(room, npc);
 
   if (box) {
     openBox(
@@ -1085,507 +951,388 @@ function runNpcTurn(room) {
   }
 
   if (!room.finished) {
-    setTimeout(() => {
+    setTimeout(function () {
       emitRoom(room);
     }, 300);
   }
 }
 
-/*
-=========================================================
-SOCKET CONNECTIONS
-=========================================================
-*/
+/* =========================================================
+   SOCKET CONNECTIONS
+========================================================= */
 
-io.on(
-  "connection",
-  socket => {
+io.on("connection", function (socket) {
 
-    /*
-    CREATE ONLINE ROOM
-    */
+  /* CREATE ONLINE ROOM */
 
-    socket.on(
-      "createRoom",
-      ({ name }) => {
-        if (
-          !name ||
-          !name.trim()
-        ) {
-          return;
-        }
+  socket.on("createRoom", function (data) {
+    const name = data && data.name;
 
-        const room =
-          createRoom(
-            socket.id,
-            name.trim()
-          );
+    if (!name || !name.trim()) {
+      return;
+    }
 
-        socket.join(
-          room.code
+    const room = createRoom(
+      socket.id,
+      name.trim()
+    );
+
+    socket.join(room.code);
+
+    emitRoom(room);
+  });
+
+  /* JOIN ONLINE ROOM */
+
+  socket.on("joinRoom", function (data) {
+    const name = data && data.name;
+    const code = data && data.code;
+
+    if (
+      !name ||
+      !name.trim() ||
+      !code
+    ) {
+      return;
+    }
+
+    const room = rooms.get(
+      code.toUpperCase()
+    );
+
+    if (!room) {
+      socket.emit(
+        "errorMessage",
+        "Room not found."
+      );
+
+      return;
+    }
+
+    if (room.started) {
+      socket.emit(
+        "errorMessage",
+        "Game already started."
+      );
+
+      return;
+    }
+
+    if (room.players.length >= 16) {
+      socket.emit(
+        "errorMessage",
+        "Room is full."
+      );
+
+      return;
+    }
+
+    room.players.push(
+      createPlayer(
+        socket.id,
+        name.trim(),
+        false,
+        null
+      )
+    );
+
+    socket.join(room.code);
+
+    addLog(
+      room,
+      name.trim() +
+        " joined the room."
+    );
+
+    emitRoom(room);
+  });
+
+  /* START ONLINE GAME */
+
+  socket.on("startGame", function () {
+
+    for (const room of rooms.values()) {
+
+      if (room.hostId !== socket.id) {
+        continue;
+      }
+
+      if (room.players.length < 4) {
+        socket.emit(
+          "errorMessage",
+          "You need at least 4 players to start."
         );
 
-        emitRoom(room);
+        return;
       }
+
+      /*
+        IMPORTANT:
+        Generate a completely new board
+        when the actual game begins.
+      */
+
+      room.boxes = createBoxes();
+
+      room.goldenBox =
+        Math.floor(Math.random() * 16) + 1;
+
+      room.started = true;
+
+      room.finished = false;
+
+      room.currentTurn =
+        room.players[0].id;
+
+      room.lastNpcIndex = -1;
+
+      addLog(
+        room,
+        "Game started!"
+      );
+
+      addLog(
+        room,
+        "A completely new hidden board has been generated."
+      );
+
+      emitRoom(room);
+
+      return;
+    }
+  });
+
+  /* CREATE SOLO GAME */
+
+  socket.on("createSolo", function (data) {
+    const name = data && data.name;
+    const npcCountValue =
+      data && data.npcCount;
+
+    if (!name || !name.trim()) {
+      return;
+    }
+
+    let count = Number(npcCountValue);
+
+    if (!Number.isFinite(count)) {
+      count = 3;
+    }
+
+    count = Math.max(
+      3,
+      Math.min(
+        15,
+        Math.floor(count)
+      )
     );
 
-    /*
-    JOIN ONLINE ROOM
-    */
+    const room = createSoloRoom(
+      socket.id,
+      name.trim(),
+      count
+    );
 
-    socket.on(
-      "joinRoom",
-      ({ name, code }) => {
-        if (
-          !name ||
-          !name.trim() ||
-          !code
-        ) {
-          return;
+    socket.join(room.code);
+
+    emitRoom(room);
+
+    setTimeout(function () {
+      runNpcTurn(room);
+    }, 1200);
+  });
+
+  /* OPEN BOX */
+
+  socket.on("openBox", function (data) {
+    const boxNumber =
+      data && data.boxNumber;
+
+    for (const room of rooms.values()) {
+
+      const player = room.players.find(
+        function (p) {
+          return p.id === socket.id;
         }
+      );
 
-        const room =
-          rooms.get(
-            code.toUpperCase()
-          );
+      if (!player) {
+        continue;
+      }
 
-        if (!room) {
-          socket.emit(
-            "errorMessage",
-            "Room not found."
-          );
+      if (
+        room.mode === "solo" &&
+        player.isNPC
+      ) {
+        return;
+      }
 
-          return;
+      openBox(
+        room,
+        socket.id,
+        boxNumber
+      );
+
+      if (
+        room.mode === "solo" &&
+        !room.finished
+      ) {
+        setTimeout(function () {
+          runNpcTurn(room);
+        }, 1000);
+      }
+
+      return;
+    }
+  });
+
+  /* BUY POWER */
+
+  socket.on("buyPower", function (data) {
+    const power = data && data.power;
+
+    for (const room of rooms.values()) {
+
+      const player = room.players.find(
+        function (p) {
+          return p.id === socket.id;
         }
+      );
 
-        if (room.started) {
-          socket.emit(
-            "errorMessage",
-            "Game already started."
-          );
+      if (
+        !player ||
+        !room.started ||
+        room.finished
+      ) {
+        continue;
+      }
 
-          return;
-        }
+      const definition =
+        POWER_DEFINITIONS[power];
 
-        if (
-          room.players.length >=
-          16
-        ) {
-          socket.emit(
-            "errorMessage",
-            "Room is full."
-          );
+      if (!definition) {
+        return;
+      }
 
-          return;
-        }
-
-        room.players.push(
-          createPlayer(
-            socket.id,
-            name.trim()
-          )
+      if (
+        player.cash <
+        definition.cost
+      ) {
+        socket.emit(
+          "errorMessage",
+          "Not enough cash."
         );
 
-        socket.join(
-          room.code
+        return;
+      }
+
+      player.cash -= definition.cost;
+
+      player.powers.push(power);
+
+      addLog(
+        room,
+        player.name +
+          " bought " +
+          power +
+          "."
+      );
+
+      emitRoom(room);
+
+      return;
+    }
+  });
+
+  /* RESET ROOM */
+
+  socket.on("resetRoom", function () {
+
+    for (
+      const [code, room]
+      of rooms.entries()
+    ) {
+
+      if (room.hostId === socket.id) {
+
+        rooms.delete(code);
+
+        socket.emit(
+          "resetComplete"
         );
 
-        addLog(
-          room,
-          `${name.trim()} joined the room.`
+        return;
+      }
+    }
+  });
+
+  /* DISCONNECT */
+
+  socket.on("disconnect", function () {
+
+    for (
+      const [code, room]
+      of rooms.entries()
+    ) {
+
+      const index =
+        room.players.findIndex(
+          function (player) {
+            return player.id === socket.id;
+          }
         );
 
-        emitRoom(room);
+      if (index === -1) {
+        continue;
       }
-    );
 
-    /*
-    START ONLINE GAME
-    */
+      const player =
+        room.players[index];
 
-    socket.on(
-      "startGame",
-      () => {
-
-        for (
-          const room
-          of rooms.values()
-        ) {
-
-          if (
-            room.hostId !==
-            socket.id
-          ) {
-            continue;
-          }
-
-          if (
-            room.players.length <
-            4
-          ) {
-            socket.emit(
-              "errorMessage",
-              "You need at least 4 players to start."
-            );
-
-            return;
-          }
-
-          /*
-          IMPORTANT:
-
-          Generate a fresh board when
-          the actual game starts.
-
-          This means the lobby cannot
-          influence the board.
-          */
-
-          room.boxes =
-            createBoxes();
-
-          room.started = true;
-
-          room.finished = false;
-
-          room.currentTurn =
-            room.players[0].id;
-
-          addLog(
-            room,
-            "Game started!"
-          );
-
-          addLog(
-            room,
-            "🎲 A completely new hidden board has been generated."
-          );
-
-          emitRoom(room);
-
-          return;
-        }
+      if (room.mode === "solo") {
+        rooms.delete(code);
+        continue;
       }
-    );
 
-    /*
-    CREATE SOLO GAME
-    */
+      room.players.splice(index, 1);
 
-    socket.on(
-      "createSolo",
-      ({ name, npcCount }) => {
+      addLog(
+        room,
+        player.name +
+          " left the game."
+      );
 
-        if (
-          !name ||
-          !name.trim()
-        ) {
-          return;
-        }
-
-        let count =
-          Number(npcCount);
-
-        if (
-          !Number.isFinite(count)
-        ) {
-          count = 3;
-        }
-
-        count =
-          Math.max(
-            3,
-            Math.min(
-              15,
-              Math.floor(count)
-            )
-          );
-
-        const room =
-          createSoloRoom(
-            socket.id,
-            name.trim(),
-            count
-          );
-
-        socket.join(
-          room.code
-        );
-
-        emitRoom(room);
-
-        setTimeout(
-          () => {
-            runNpcTurn(room);
-          },
-          1200
-        );
+      if (
+        room.hostId === socket.id &&
+        room.players.length > 0
+      ) {
+        room.hostId =
+          room.players[0].id;
       }
-    );
 
-    /*
-    HUMAN OPENS BOX
-    */
+      emitRoom(room);
 
-    socket.on(
-      "openBox",
-      ({ boxNumber }) => {
-
-        for (
-          const room
-          of rooms.values()
-        ) {
-
-          const player =
-            room.players.find(
-              p =>
-                p.id ===
-                socket.id
-            );
-
-          if (!player) {
-            continue;
-          }
-
-          if (
-            room.mode ===
-              "solo" &&
-            player.isNPC
-          ) {
-            return;
-          }
-
-          openBox(
-            room,
-            socket.id,
-            boxNumber
-          );
-
-          /*
-          After the human's turn,
-          NPCs take their turns.
-          */
-
-          if (
-            room.mode ===
-              "solo" &&
-            !room.finished
-          ) {
-            setTimeout(
-              () => {
-                runNpcTurn(room);
-              },
-              1000
-            );
-          }
-
-          return;
-        }
+      if (room.players.length === 0) {
+        rooms.delete(code);
       }
-    );
 
-    /*
-    BUY POWER
-    */
+      return;
+    }
+  });
 
-    socket.on(
-      "buyPower",
-      ({ power }) => {
+});
 
-        for (
-          const room
-          of rooms.values()
-        ) {
-
-          const player =
-            room.players.find(
-              p =>
-                p.id ===
-                socket.id
-            );
-
-          if (
-            !player ||
-            !room.started ||
-            room.finished
-          ) {
-            continue;
-          }
-
-          const definition =
-            POWER_DEFINITIONS[
-              power
-            ];
-
-          if (!definition) {
-            return;
-          }
-
-          if (
-            player.cash <
-            definition.cost
-          ) {
-            socket.emit(
-              "errorMessage",
-              "Not enough cash."
-            );
-
-            return;
-          }
-
-          player.cash -=
-            definition.cost;
-
-          player.powers.push(
-            power
-          );
-
-          addLog(
-            room,
-            `${player.name} bought ${power}.`
-          );
-
-          emitRoom(room);
-
-          return;
-        }
-      }
-    );
-
-    /*
-    RESET ROOM
-    */
-
-    socket.on(
-      "resetRoom",
-      () => {
-
-        for (
-          const [
-            code,
-            room
-          ]
-          of rooms.entries()
-        ) {
-
-          if (
-            room.hostId ===
-            socket.id
-          ) {
-
-            rooms.delete(
-              code
-            );
-
-            socket.emit(
-              "resetComplete"
-            );
-
-            return;
-          }
-        }
-      }
-    );
-
-    /*
-    DISCONNECT
-    */
-
-    socket.on(
-      "disconnect",
-      () => {
-
-        for (
-          const [
-            code,
-            room
-          ]
-          of rooms.entries()
-        ) {
-
-          const index =
-            room.players.findIndex(
-              player =>
-                player.id ===
-                socket.id
-            );
-
-          if (
-            index === -1
-          ) {
-            continue;
-          }
-
-          const player =
-            room.players[index];
-
-          /*
-          Solo game currently ends
-          when the human disconnects.
-          */
-
-          if (
-            room.mode ===
-            "solo"
-          ) {
-            rooms.delete(
-              code
-            );
-
-            continue;
-          }
-
-          room.players.splice(
-            index,
-            1
-          );
-
-          addLog(
-            room,
-            `${player.name} left the game.`
-          );
-
-          if (
-            room.hostId ===
-              socket.id &&
-            room.players.length >
-              0
-          ) {
-            room.hostId =
-              room.players[0].id;
-          }
-
-          emitRoom(room);
-
-          if (
-            room.players.length ===
-            0
-          ) {
-            rooms.delete(
-              code
-            );
-          }
-
-          return;
-        }
-      }
-    );
-  }
-);
-
-/*
-=========================================================
-SERVER
-=========================================================
-*/
+/* =========================================================
+   START SERVER
+========================================================= */
 
 server.listen(
   PORT,
   "0.0.0.0",
-  () => {
+  function () {
     console.log(
-      `THE BOX server running on port ${PORT}`
+      "THE BOX server running on port " +
+        PORT
     );
   }
 );
-```
