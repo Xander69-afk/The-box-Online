@@ -951,7 +951,7 @@ function openBox(
     return;
   }
 
-  advanceTurn();
+  advanceTurn(room);
 }
 
 /* =========================================================
