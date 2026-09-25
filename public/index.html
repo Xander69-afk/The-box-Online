@@ -1,14 +1,21 @@
 <!DOCTYPE html>
-
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
   <title>THE BOX</title>
+
   <script src="/socket.io/socket.io.js"></script>
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -17,7 +24,40 @@
       color: white;
     }
 
-    button, input, select { font: inherit; }
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 13px 18px;
+      cursor: pointer;
+      font-weight: 700;
+      margin: 4px;
+    }
+
+    button:hover:not(:disabled) {
+      opacity: 0.88;
+    }
+
+    button:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    input,
+    select {
+      width: 100%;
+      background: #101010;
+      border: 1px solid #444;
+      color: white;
+      padding: 14px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
 
     .container {
       width: min(1200px, 94%);
@@ -39,8 +79,17 @@
       margin-bottom: 25px;
     }
 
-    .screen { display: none; }
-    .screen.active { display: block; }
+    .screen {
+      display: none;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .hidden {
+      display: none !important;
+    }
 
     .card {
       background: #191919;
@@ -50,37 +99,45 @@
       margin-bottom: 18px;
     }
 
+    .card h2 {
+      margin-top: 0;
+    }
+
     .menu {
       max-width: 500px;
       margin: 40px auto;
     }
 
-    input, select {
-      width: 100%;
-      background: #101010;
-      border: 1px solid #444;
+    .primary {
+      background: white;
+      color: black;
+    }
+
+    .secondary {
+      background: #303030;
       color: white;
-      padding: 14px;
-      border-radius: 8px;
-      margin-bottom: 12px;
+      border: 1px solid #555;
     }
 
-    button {
-      border: 0;
-      border-radius: 8px;
-      padding: 13px 18px;
-      cursor: pointer;
-      font-weight: 700;
-      margin: 4px;
+    .danger {
+      background: #9b2226;
+      color: white;
     }
 
-    button:hover { opacity: 0.88; }
-    button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .success {
+      background: #386641;
+      color: white;
+    }
 
-    .primary { background: #fff; color: #000; }
-    .secondary { background: #303030; color: white; border: 1px solid #555; }
-    .danger { background: #9b2226; color: white; }
-    .success { background: #386641; color: white; }
+    .room-code {
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: 5px;
+      text-align: center;
+      margin: 15px 0;
+    }
+
+    /* ================= TURN ================= */
 
     .turn-banner {
       text-align: center;
@@ -105,11 +162,15 @@
     }
 
     .your-turn {
-      border-color: #fff;
+      border-color: white;
       background: #252525;
     }
 
-    .your-turn .turn-name { font-size: 36px; }
+    .your-turn .turn-name {
+      font-size: 36px;
+    }
+
+    /* ================= STATS ================= */
 
     .game-info {
       display: grid;
@@ -127,63 +188,70 @@
     }
 
     .stat-label {
-      font-size: 12px;
       color: #999;
+      font-size: 12px;
       text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     .stat-value {
-      font-size: 25px;
+      font-size: 24px;
       font-weight: 900;
-      margin-top: 4px;
+      margin-top: 5px;
     }
+
+    /* ================= LAYOUT ================= */
 
     .layout {
       display: grid;
-      grid-template-columns: 1fr 330px;
+      grid-template-columns: 2fr 1fr;
       gap: 18px;
     }
+
+    /* ================= BOXES ================= */
 
     .boxes {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
+      gap: 10px;
+      margin-top: 15px;
     }
 
     .box {
-      aspect-ratio: 1;
-      background: #252525;
-      border: 2px solid #555;
+      aspect-ratio: 1 / 1;
+      background: #292929;
       color: white;
-      border-radius: 12px;
+      border: 2px solid #555;
       font-size: 25px;
       font-weight: 900;
-      cursor: pointer;
+      margin: 0;
     }
 
-    .box:hover {
+    .box:not(:disabled):hover {
       border-color: white;
       transform: translateY(-2px);
     }
 
     .box.opened {
       cursor: default;
-      transform: none;
     }
 
     .box.safe {
-      background: #1d4d2b;
-      border-color: #4c9a62;
+      background: #24452b;
+      border-color: #4d8b59;
     }
 
     .box.eliminated {
-      background: #641c1c;
-      border-color: #a94444;
+      background: #5a1d20;
+      border-color: #b63b42;
     }
 
     .box.golden {
-      box-shadow: 0 0 0 3px #d4af37;
+      border-color: #d4af37;
+      box-shadow: 0 0 14px rgba(212, 175, 55, 0.7);
     }
+
+    /* ================= PLAYERS ================= */
 
     .players {
       display: flex;
@@ -192,43 +260,48 @@
     }
 
     .player {
+      background: #222;
+      border: 1px solid #333;
+      padding: 11px;
+      border-radius: 9px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      background: #222;
-      border: 1px solid #383838;
-      border-radius: 9px;
-      padding: 11px;
+      gap: 10px;
     }
 
     .player.active {
-      border: 2px solid white;
-      background: #2b2b2b;
+      border-color: white;
     }
 
-    .player.dead { opacity: 0.45; }
+    .player.dead {
+      opacity: 0.45;
+    }
 
-    .player-name { font-weight: 800; }
+    .player-name {
+      font-weight: 800;
+    }
 
     .player-meta {
-      font-size: 12px;
       color: #999;
+      font-size: 12px;
       margin-top: 3px;
     }
 
     .cash {
       font-weight: 900;
-      color: #ddd;
+      white-space: nowrap;
     }
 
     .badge {
       display: inline-block;
-      font-size: 10px;
-      font-weight: 900;
-      padding: 3px 6px;
-      border-radius: 4px;
       background: #444;
+      color: white;
+      font-size: 9px;
+      padding: 3px 5px;
+      border-radius: 5px;
       margin-left: 5px;
+      vertical-align: middle;
     }
 
     .turn-badge {
@@ -237,44 +310,34 @@
     }
 
     .dead-badge {
-      background: #702020;
-      color: white;
+      background: #8f1d24;
     }
 
-    .log {
-      max-height: 300px;
-      overflow-y: auto;
-      background: #101010;
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .log-entry {
-      padding: 5px 0;
-      border-bottom: 1px solid #252525;
-    }
+    /* ================= OBJECTIVE ================= */
 
     .objective {
-      border-left: 3px solid white;
-      padding-left: 12px;
+      background: #111;
+      border: 1px solid #333;
+      padding: 14px;
+      border-radius: 10px;
     }
 
     .objective-name {
-      font-size: 19px;
       font-weight: 900;
-      margin-bottom: 5px;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
     }
 
     .objective-text {
       color: #bbb;
-      line-height: 1.4;
+      line-height: 1.45;
     }
+
+    /* ================= POWER STORE ================= */
 
     .power-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: 1fr 1fr;
       gap: 8px;
     }
 
@@ -282,86 +345,63 @@
       background: #292929;
       color: white;
       border: 1px solid #444;
-      padding: 10px;
-      border-radius: 8px;
-      cursor: pointer;
+      padding: 12px 8px;
+      margin: 0;
+      min-height: 70px;
+    }
+
+    .power-button strong {
+      display: block;
+      font-size: 12px;
     }
 
     .power-button small {
       display: block;
       color: #aaa;
+      margin-top: 5px;
+    }
+
+    /* ================= INVENTORY ================= */
+
+    .inventory-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .inventory-item {
+      background: #222;
+      border: 1px solid #3b3b3b;
+      border-radius: 9px;
+      padding: 10px;
+
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .inventory-name {
+      font-weight: 900;
+    }
+
+    .inventory-count {
+      color: #aaa;
+      font-size: 12px;
       margin-top: 3px;
     }
 
-    /* ================= DEALS ================= */
-
-    .deal-card {
-      background: #202020;
-      border: 1px solid #3d3d3d;
-      border-radius: 10px;
-      padding: 12px;
-      margin-bottom: 10px;
-    }
-
-    .deal-card.pending {
-      border-color: #777;
-    }
-
-    .deal-card.active {
-      border-color: #4c9a62;
-    }
-
-    .deal-card.history {
-      opacity: 0.7;
-    }
-
-    .deal-title {
-      font-weight: 900;
-      margin-bottom: 7px;
-    }
-
-    .deal-details {
-      color: #bbb;
-      font-size: 13px;
-      line-height: 1.5;
-      margin-bottom: 8px;
-    }
-
-    .deal-status {
+    .status-pill {
+      display: inline-block;
+      padding: 5px 8px;
+      border-radius: 6px;
+      background: #2d2d2d;
+      border: 1px solid #444;
       font-size: 11px;
-      font-weight: 900;
-      text-transform: uppercase;
-      color: #aaa;
-      margin-bottom: 8px;
+      margin: 4px 4px 0 0;
     }
 
-    .deal-buttons {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .deal-buttons button {
-      flex: 1;
-      min-width: 90px;
-      margin: 0;
-      padding: 9px;
-      font-size: 12px;
-    }
-
-    .deal-empty {
-      color: #777;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .deal-section-title {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #999;
-      margin: 15px 0 8px;
-    }
+    /* ================= DEALS ================= */
 
     .deal-notice {
       background: #252525;
@@ -373,6 +413,82 @@
       margin-bottom: 12px;
       line-height: 1.4;
     }
+
+    .deal-section-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #999;
+      margin: 15px 0 8px;
+    }
+
+    .deal-card {
+      background: #222;
+      border: 1px solid #3b3b3b;
+      border-radius: 9px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    .deal-card.active {
+      border-color: #567a5e;
+    }
+
+    .deal-card.history {
+      opacity: 0.7;
+    }
+
+    .deal-title {
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 5px;
+    }
+
+    .deal-details {
+      color: #ccc;
+      line-height: 1.4;
+      font-size: 13px;
+    }
+
+    .deal-status {
+      color: #999;
+      font-size: 11px;
+      margin-top: 7px;
+    }
+
+    .deal-buttons {
+      display: flex;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .deal-buttons button {
+      flex: 1;
+      margin: 0;
+    }
+
+    .deal-empty {
+      color: #777;
+      font-size: 13px;
+      padding: 8px 0;
+    }
+
+    /* ================= LOG ================= */
+
+    .log {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      padding: 8px 0;
+      border-bottom: 1px solid #292929;
+      color: #bbb;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    /* ================= GAME OVER ================= */
 
     .game-over {
       text-align: center;
@@ -391,18 +507,81 @@
       color: black;
     }
 
-    .room-code {
-      font-size: 30px;
-      font-weight: 900;
-      letter-spacing: 5px;
-      text-align: center;
+    /* ================= POWER MODAL ================= */
+
+    .power-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 20px;
+      z-index: 9999;
+    }
+
+    .power-modal {
+      width: min(480px, 100%);
+      background: #191919;
+      border: 1px solid #555;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.6);
+    }
+
+    .power-modal h3 {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .power-modal-description {
+      color: #bbb;
+      line-height: 1.5;
+    }
+
+    #powerModalFields {
       margin: 15px 0;
     }
 
-    .hidden { display: none !important; }
+    #powerModalFields label {
+      display: block;
+      color: #aaa;
+      font-size: 12px;
+      margin: 8px 0 6px;
+    }
+
+    /* ================= PRIVATE MESSAGE ================= */
+
+    .private-result {
+      position: fixed;
+      left: 50%;
+      top: 30px;
+      transform: translateX(-50%);
+
+      width: min(500px, 90%);
+
+      background: #f1f1f1;
+      color: #111;
+
+      padding: 16px 20px;
+      border-radius: 10px;
+
+      font-weight: 800;
+      text-align: center;
+
+      z-index: 10000;
+
+      box-shadow: 0 10px 40px rgba(0,0,0,.6);
+    }
+
+    /* ================= MOBILE ================= */
 
     @media (max-width: 800px) {
-      .layout { grid-template-columns: 1fr; }
+      .layout {
+        grid-template-columns: 1fr;
+      }
 
       .game-info {
         grid-template-columns: repeat(3, 1fr);
@@ -413,406 +592,578 @@
         gap: 7px;
       }
 
-      .box { font-size: 18px; }
+      .box {
+        font-size: 18px;
+      }
     }
 
     @media (max-width: 500px) {
-      .title { font-size: 32px; }
+      .title {
+        font-size: 32px;
+      }
 
-      .turn-name { font-size: 24px; }
+      .turn-name {
+        font-size: 24px;
+      }
 
-      .your-turn .turn-name { font-size: 28px; }
+      .your-turn .turn-name {
+        font-size: 28px;
+      }
+
+      .power-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-value {
+        font-size: 19px;
+      }
     }
   </style>
-
 </head>
 
 <body>
 
 <div class="container">
 
-  <div class="title">THE BOX</div>
+  <div class="title">
+    THE BOX
+  </div>
 
   <div class="subtitle">
     Trust. Risk. Deception. Survival.
   </div>
 
-  <!-- ================= MENU ================= -->
-
-  <div id="menuScreen" class="screen active">
-
-```
-<div class="card menu">
-
-  <h2>Play THE BOX</h2>
-
-  <input
-    id="nameInput"
-    type="text"
-    placeholder="Your name"
-    maxlength="20"
-  >
-
-  <button
-    id="soloButton"
-    class="primary"
-    style="width:100%;"
-  >
-    SOLO TEST
-  </button>
-
-  <select id="npcCount">
-    <option value="3">4 Players — You + 3 NPCs</option>
-    <option value="7">8 Players — You + 7 NPCs</option>
-    <option value="11">12 Players — You + 11 NPCs</option>
-    <option value="15">16 Players — You + 15 NPCs</option>
-  </select>
-
-  <hr style="border-color:#333;margin:20px 0;">
-
-  <button
-    id="createButton"
-    class="secondary"
-    style="width:100%;"
-  >
-    CREATE ONLINE ROOM
-  </button>
-
-  <input
-    id="roomCodeInput"
-    type="text"
-    placeholder="Room code"
-    maxlength="5"
-    style="margin-top:10px;"
-  >
-
-  <button
-    id="joinButton"
-    class="secondary"
-    style="width:100%;"
-  >
-    JOIN ONLINE ROOM
-  </button>
-
-</div>
-```
-
-  </div>
-
-  <!-- ================= LOBBY ================= -->
-
-  <div id="lobbyScreen" class="screen">
-
-```
-<div class="card">
-
-  <h2>Waiting Room</h2>
-
-  <div class="room-code" id="roomCodeDisplay">
-    -----
-  </div>
-
-  <p style="text-align:center;color:#aaa;">
-    Share this room code with your friends.
-  </p>
-
-  <div id="lobbyPlayers"></div>
-
-  <div style="text-align:center;margin-top:20px;">
-
-    <button
-      id="startButton"
-      class="primary"
-    >
-      START GAME
-    </button>
-
-  </div>
-
-</div>
-```
-
-  </div>
-
-  <!-- ================= GAME ================= -->
-
-  <div id="gameScreen" class="screen">
-
-```
-<div
-  id="turnBanner"
-  class="turn-banner"
->
-
-  <div class="turn-label">
-    Current Turn
-  </div>
+  <!-- =====================================================
+       MENU
+  ====================================================== -->
 
   <div
-    id="turnName"
-    class="turn-name"
+    id="menuScreen"
+    class="screen active"
   >
-    Waiting...
+
+    <div class="card menu">
+
+      <h2>Play THE BOX</h2>
+
+      <input
+        id="nameInput"
+        type="text"
+        placeholder="Your name"
+        maxlength="20"
+      >
+
+      <button
+        id="soloButton"
+        class="primary"
+        style="width:100%;margin:0 0 10px 0;"
+      >
+        SOLO TEST
+      </button>
+
+      <select id="npcCount">
+        <option value="3">
+          4 Players — You + 3 NPCs
+        </option>
+
+        <option value="7">
+          8 Players — You + 7 NPCs
+        </option>
+
+        <option value="11">
+          12 Players — You + 11 NPCs
+        </option>
+
+        <option value="15">
+          16 Players — You + 15 NPCs
+        </option>
+      </select>
+
+      <hr
+        style="border-color:#333;margin:20px 0;"
+      >
+
+      <button
+        id="createButton"
+        class="secondary"
+        style="width:100%;margin:0;"
+      >
+        CREATE ONLINE ROOM
+      </button>
+
+      <input
+        id="roomCodeInput"
+        type="text"
+        placeholder="Room code"
+        maxlength="5"
+        style="margin-top:10px;"
+      >
+
+      <button
+        id="joinButton"
+        class="secondary"
+        style="width:100%;margin:0;"
+      >
+        JOIN ONLINE ROOM
+      </button>
+
+    </div>
+
   </div>
 
-</div>
+  <!-- =====================================================
+       LOBBY
+  ====================================================== -->
 
-<div class="game-info">
-
-  <div class="stat">
-    <div class="stat-label">
-      Players Alive
-    </div>
-
-    <div
-      id="aliveCount"
-      class="stat-value"
-    >
-      -
-    </div>
-  </div>
-
-  <div class="stat">
-    <div class="stat-label">
-      Boxes Remaining
-    </div>
-
-    <div
-      id="boxesRemaining"
-      class="stat-value"
-    >
-      -
-    </div>
-  </div>
-
-  <div class="stat">
-    <div class="stat-label">
-      Your Cash
-    </div>
-
-    <div
-      id="cashDisplay"
-      class="stat-value"
-    >
-      $0
-    </div>
-  </div>
-
-</div>
-
-<div class="layout">
-
-  <!-- ================= MAIN ================= -->
-
-  <div>
+  <div
+    id="lobbyScreen"
+    class="screen"
+  >
 
     <div class="card">
 
-      <h2>Choose a Box</h2>
+      <h2>Waiting Room</h2>
+
+      <div
+        id="roomCodeDisplay"
+        class="room-code"
+      >
+        -----
+      </div>
 
       <p
-        id="boxInstruction"
-        style="color:#aaa;"
+        style="text-align:center;color:#aaa;"
       >
-        Waiting for your turn...
+        Share this room code with your friends.
       </p>
 
-      <div
-        id="boxes"
-        class="boxes"
-      ></div>
-
-    </div>
-
-    <!-- ================= DEALS ================= -->
-
-    <div class="card">
-
-      <h2>🤝 Deals</h2>
-
-      <div class="deal-notice">
-        Deals are promises between players. Money is transferred when a deal is accepted. Protection agreements are promises and may be honored or broken later.
-      </div>
-
-      <button
-        id="makeDealButton"
-        class="primary"
-        style="width:100%;margin:0 0 12px 0;"
-      >
-        🤝 MAKE A DEAL
-      </button>
-
-      <div id="dealForm" class="hidden">
-
-        <h3>Propose a Deal</h3>
-
-        <label style="color:#aaa;font-size:12px;">
-          Who do you want to deal with?
-        </label>
-
-        <select id="dealTarget"></select>
-
-        <label style="color:#aaa;font-size:12px;">
-          What are you offering?
-        </label>
-
-        <select id="dealOfferType">
-          <option value="money">Money</option>
-          <option value="protection">Protection</option>
-        </select>
-
-        <input
-          id="dealOfferAmount"
-          type="number"
-          min="1"
-          placeholder="Amount of money"
-        >
-
-        <label style="color:#aaa;font-size:12px;">
-          What are you asking for?
-        </label>
-
-        <select id="dealRequestType">
-          <option value="nothing">Nothing</option>
-          <option value="money">Money</option>
-          <option value="protection">Protection</option>
-        </select>
-
-        <input
-          id="dealRequestAmount"
-          type="number"
-          min="1"
-          placeholder="Amount requested"
-        >
-
-        <div class="deal-buttons">
-
-          <button
-            id="sendDealButton"
-            class="success"
-          >
-            SEND PROPOSAL
-          </button>
-
-          <button
-            id="cancelDealButton"
-            class="secondary"
-          >
-            CANCEL
-          </button>
-
-        </div>
-
-      </div>
-
-      <div class="deal-section-title">
-        Incoming Proposals
-      </div>
-
-      <div id="incomingDeals"></div>
-
-      <div class="deal-section-title">
-        Active Deals
-      </div>
-
-      <div id="activeDeals"></div>
-
-      <div class="deal-section-title">
-        Deal History
-      </div>
-
-      <div id="dealHistory"></div>
-
-    </div>
-
-    <!-- ================= GAME OVER ================= -->
-
-    <div
-      id="gameOverCard"
-      class="card game-over hidden"
-    >
-
-      <h2>GAME OVER</h2>
-
-      <p id="gameOverText"></p>
-
-      <button
-        id="playAgainButton"
-        class="play-again"
-      >
-        PLAY AGAIN
-      </button>
-
-    </div>
-
-    <!-- ================= LOG ================= -->
-
-    <div class="card">
-
-      <h2>Game Log</h2>
+      <div id="lobbyPlayers"></div>
 
       <div
-        id="gameLog"
-        class="log"
-      ></div>
+        style="text-align:center;margin-top:20px;"
+      >
+
+        <button
+          id="startButton"
+          class="primary"
+        >
+          START GAME
+        </button>
+
+      </div>
 
     </div>
 
   </div>
 
-  <!-- ================= SIDEBAR ================= -->
+  <!-- =====================================================
+       GAME
+  ====================================================== -->
 
-  <div>
+  <div
+    id="gameScreen"
+    class="screen"
+  >
 
-    <div class="card">
+    <div
+      id="turnBanner"
+      class="turn-banner"
+    >
 
-      <h2>Players</h2>
+      <div class="turn-label">
+        Current Turn
+      </div>
 
       <div
-        id="players"
-        class="players"
-      ></div>
-
-    </div>
-
-    <div class="card">
-
-      <h2>Your Objective</h2>
-
-      <div
-        id="objective"
-        class="objective"
+        id="turnName"
+        class="turn-name"
       >
         Waiting...
       </div>
 
     </div>
 
-    <div class="card">
+    <!-- STATS -->
 
-      <h2>Power Store</h2>
+    <div class="game-info">
 
-      <div
-        id="powerGrid"
-        class="power-grid"
-      ></div>
+      <div class="stat">
+
+        <div class="stat-label">
+          Players Alive
+        </div>
+
+        <div
+          id="aliveCount"
+          class="stat-value"
+        >
+          -
+        </div>
+
+      </div>
+
+      <div class="stat">
+
+        <div class="stat-label">
+          Boxes Remaining
+        </div>
+
+        <div
+          id="boxesRemaining"
+          class="stat-value"
+        >
+          -
+        </div>
+
+      </div>
+
+      <div class="stat">
+
+        <div class="stat-label">
+          Your Cash
+        </div>
+
+        <div
+          id="cashDisplay"
+          class="stat-value"
+        >
+          $0
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="layout">
+
+      <!-- =================================================
+           LEFT COLUMN
+      ================================================== -->
+
+      <div>
+
+        <!-- BOXES -->
+
+        <div class="card">
+
+          <h2>Choose a Box</h2>
+
+          <p
+            id="boxInstruction"
+            style="color:#aaa;"
+          >
+            Waiting for your turn...
+          </p>
+
+          <div
+            id="boxes"
+            class="boxes"
+          ></div>
+
+        </div>
+
+        <!-- DEALS -->
+
+        <div class="card">
+
+          <h2>🤝 Deals</h2>
+
+          <div class="deal-notice">
+            Deals are promises between players.
+            Money transfers when a deal is accepted.
+            Protection agreements remain promises until
+            the Protection power is actually used.
+          </div>
+
+          <button
+            id="makeDealButton"
+            class="primary"
+            style="width:100%;margin:0 0 12px 0;"
+          >
+            🤝 MAKE A DEAL
+          </button>
+
+          <!-- DEAL FORM -->
+
+          <div
+            id="dealForm"
+            class="hidden"
+          >
+
+            <h3>Propose a Deal</h3>
+
+            <label>
+              Who do you want to deal with?
+            </label>
+
+            <select id="dealTarget"></select>
+
+            <label>
+              What are you offering?
+            </label>
+
+            <select id="dealOfferType">
+              <option value="money">
+                Money
+              </option>
+
+              <option value="protection">
+                Protection
+              </option>
+            </select>
+
+            <input
+              id="dealOfferAmount"
+              type="number"
+              min="1"
+              placeholder="Amount of money"
+            >
+
+            <label>
+              What are you asking for?
+            </label>
+
+            <select id="dealRequestType">
+
+              <option value="money">
+                Money
+              </option>
+
+              <option value="protection">
+                Protection
+              </option>
+
+              <option value="nothing">
+                Nothing
+              </option>
+
+            </select>
+
+            <input
+              id="dealRequestAmount"
+              type="number"
+              min="1"
+              placeholder="Amount of money"
+            >
+
+            <div class="deal-buttons">
+
+              <button
+                id="sendDealButton"
+                class="success"
+              >
+                SEND DEAL
+              </button>
+
+              <button
+                id="cancelDealButton"
+                class="secondary"
+              >
+                CANCEL
+              </button>
+
+            </div>
+
+          </div>
+
+          <div class="deal-section-title">
+            Incoming Deals
+          </div>
+
+          <div id="incomingDeals"></div>
+
+          <div class="deal-section-title">
+            Active Deals
+          </div>
+
+          <div id="activeDeals"></div>
+
+          <div class="deal-section-title">
+            Deal History
+          </div>
+
+          <div id="dealHistory"></div>
+
+        </div>
+
+        <!-- LOG -->
+
+        <div class="card">
+
+          <h2>Game Log</h2>
+
+          <div
+            id="gameLog"
+            class="log"
+          ></div>
+
+        </div>
+
+        <!-- GAME OVER -->
+
+        <div
+          id="gameOverCard"
+          class="card game-over hidden"
+        >
+
+          <h2>GAME OVER</h2>
+
+          <p id="gameOverText"></p>
+
+          <p
+            id="goldenBoxText"
+            style="color:#d4af37;font-weight:bold;"
+          ></p>
+
+          <button
+            id="playAgainButton"
+            class="play-again"
+          >
+            PLAY AGAIN
+          </button>
+
+        </div>
+
+      </div>
+
+      <!-- =================================================
+           RIGHT COLUMN
+      ================================================== -->
+
+      <div>
+
+        <!-- PLAYERS -->
+
+        <div class="card">
+
+          <h2>Players</h2>
+
+          <div
+            id="players"
+            class="players"
+          ></div>
+
+        </div>
+
+        <!-- OBJECTIVE -->
+
+        <div class="card">
+
+          <h2>Your Objective</h2>
+
+          <div
+            id="objective"
+            class="objective"
+          >
+            Waiting...
+          </div>
+
+        </div>
+
+        <!-- POWER STORE -->
+
+        <div class="card">
+
+          <h2>Power Store</h2>
+
+          <p
+            style="color:#999;font-size:12px;"
+          >
+            Every power costs $60.
+          </p>
+
+          <div
+            id="powerGrid"
+            class="power-grid"
+          ></div>
+
+        </div>
+
+        <!-- INVENTORY -->
+
+        <div class="card">
+
+          <h2>Your Powers</h2>
+
+          <div id="powerStatus"></div>
+
+          <div
+            id="powerInventory"
+            class="inventory-list"
+          ></div>
+
+        </div>
+
+      </div>
 
     </div>
 
   </div>
 
 </div>
-```
+
+<!-- =======================================================
+     POWER MODAL
+======================================================== -->
+
+<div
+  id="powerModalBackdrop"
+  class="power-modal-backdrop hidden"
+>
+
+  <div class="power-modal">
+
+    <h3 id="powerModalTitle">
+      Use Power
+    </h3>
+
+    <p
+      id="powerModalText"
+      class="power-modal-description"
+    ></p>
+
+    <div id="powerModalFields"></div>
+
+    <div class="deal-buttons">
+
+      <button
+        id="confirmPowerButton"
+        class="success"
+      >
+        USE POWER
+      </button>
+
+      <button
+        id="cancelPowerButton"
+        class="secondary"
+      >
+        CANCEL
+      </button>
+
+    </div>
 
   </div>
 
 </div>
 
+<!-- PRIVATE INFORMATION -->
+
+<div
+  id="privateResult"
+  class="private-result hidden"
+></div>
+
+
 <script>
+
+/* =========================================================
+   CONNECTION
+========================================================= */
 
 const socket = io();
 
 let currentState = null;
+let pendingPower = null;
 
 const POWER_NAMES = [
   "Protection",
@@ -826,6 +1177,11 @@ const POWER_NAMES = [
 ];
 
 const POWER_COST = 60;
+
+
+/* =========================================================
+   ELEMENTS
+========================================================= */
 
 const menuScreen =
   document.getElementById("menuScreen");
@@ -887,7 +1243,25 @@ const sendDealButton =
 const cancelDealButton =
   document.getElementById("cancelDealButton");
 
-/* ================= SCREEN ================= */
+
+/* =========================================================
+   SAFETY
+========================================================= */
+
+function escapeHtml(value) {
+
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+
+/* =========================================================
+   SCREEN
+========================================================= */
 
 function showScreen(screen) {
 
@@ -898,22 +1272,10 @@ function showScreen(screen) {
   screen.classList.add("active");
 }
 
-/* ================= PLAYER ================= */
 
-function getPlayer() {
-
-  if (!currentState) {
-    return null;
-  }
-
-  return currentState.players.find(
-    function(player) {
-      return player.id === currentState.you.id;
-    }
-  );
-}
-
-/* ================= SOLO ================= */
+/* =========================================================
+   MENU BUTTONS
+========================================================= */
 
 soloButton.addEventListener(
   "click",
@@ -931,13 +1293,13 @@ soloButton.addEventListener(
       "createSolo",
       {
         name: name,
-        npcCount: Number(npcCount.value)
+        npcCount:
+          Number(npcCount.value)
       }
     );
   }
 );
 
-/* ================= CREATE ================= */
 
 createButton.addEventListener(
   "click",
@@ -960,7 +1322,6 @@ createButton.addEventListener(
   }
 );
 
-/* ================= JOIN ================= */
 
 joinButton.addEventListener(
   "click",
@@ -980,7 +1341,7 @@ joinButton.addEventListener(
     }
 
     if (!code) {
-      alert("Enter a room code.");
+      alert("Enter the room code.");
       return;
     }
 
@@ -994,540 +1355,32 @@ joinButton.addEventListener(
   }
 );
 
-/* ================= START ================= */
 
 startButton.addEventListener(
   "click",
   function() {
-    socket.emit("startGame");
+
+    socket.emit(
+      "startGame"
+    );
   }
 );
 
-/* ================= PLAY AGAIN ================= */
 
 playAgainButton.addEventListener(
   "click",
   function() {
-    socket.emit("playAgain");
-  }
-);
-
-/* ================= DEAL FORM ================= */
-
-makeDealButton.addEventListener(
-  "click",
-  function() {
-
-    if (!currentState || currentState.finished) {
-      return;
-    }
-
-    populateDealTargets();
-
-    dealForm.classList.remove("hidden");
-
-    updateDealInputs();
-  }
-);
-
-cancelDealButton.addEventListener(
-  "click",
-  function() {
-
-    dealForm.classList.add("hidden");
-  }
-);
-
-dealOfferType.addEventListener(
-  "change",
-  updateDealInputs
-);
-
-dealRequestType.addEventListener(
-  "change",
-  updateDealInputs
-);
-
-function updateDealInputs() {
-
-  dealOfferAmount.style.display =
-    dealOfferType.value === "money"
-      ? "block"
-      : "none";
-
-  dealRequestAmount.style.display =
-    dealRequestType.value === "money"
-      ? "block"
-      : "none";
-}
-
-/* ================= DEAL TARGETS ================= */
-
-function populateDealTargets() {
-
-  dealTarget.innerHTML = "";
-
-  if (!currentState) {
-    return;
-  }
-
-  const availablePlayers =
-    currentState.players.filter(
-      function(player) {
-
-        return (
-          player.id !== currentState.you.id &&
-          player.alive
-        );
-      }
-    );
-
-  if (availablePlayers.length === 0) {
-
-    const option =
-      document.createElement("option");
-
-    option.textContent =
-      "No available players";
-
-    option.value = "";
-
-    dealTarget.appendChild(option);
-
-    return;
-  }
-
-  availablePlayers.forEach(
-    function(player) {
-
-      const option =
-        document.createElement("option");
-
-      option.value =
-        player.id;
-
-      option.textContent =
-        player.name +
-        (player.isNPC
-          ? " — " + (player.personality || "NPC")
-          : "");
-
-      dealTarget.appendChild(option);
-    }
-  );
-}
-
-/* ================= SEND DEAL ================= */
-
-sendDealButton.addEventListener(
-  "click",
-  function() {
-
-    if (!currentState) {
-      return;
-    }
-
-    const targetId =
-      dealTarget.value;
-
-    if (!targetId) {
-      alert("Choose a player.");
-      return;
-    }
-
-    const offerType =
-      dealOfferType.value;
-
-    const requestType =
-      dealRequestType.value;
-
-    let offerAmount = null;
-    let requestAmount = null;
-
-    if (offerType === "money") {
-
-      offerAmount =
-        Number(dealOfferAmount.value);
-
-      if (
-        !Number.isFinite(offerAmount) ||
-        offerAmount <= 0
-      ) {
-        alert("Enter a valid amount to offer.");
-        return;
-      }
-
-      if (
-        offerAmount >
-        currentState.you.cash
-      ) {
-        alert("You don't have enough cash.");
-        return;
-      }
-    }
-
-    if (requestType === "money") {
-
-      requestAmount =
-        Number(dealRequestAmount.value);
-
-      if (
-        !Number.isFinite(requestAmount) ||
-        requestAmount <= 0
-      ) {
-        alert("Enter a valid amount to request.");
-        return;
-      }
-    }
 
     socket.emit(
-      "makeDeal",
-      {
-        recipientId: targetId,
-
-        offer: {
-          type: offerType,
-          amount: offerAmount
-        },
-
-        request: {
-          type: requestType,
-          amount: requestAmount
-        }
-      }
+      "playAgain"
     );
-
-    dealForm.classList.add("hidden");
-
-    dealOfferAmount.value = "";
-    dealRequestAmount.value = "";
   }
 );
 
-/* ================= ACCEPT / DECLINE ================= */
 
-function acceptDeal(id) {
-
-  socket.emit(
-    "acceptDeal",
-    {
-      dealId: id
-    }
-  );
-}
-
-function declineDeal(id) {
-
-  socket.emit(
-    "declineDeal",
-    {
-      dealId: id
-    }
-  );
-}
-
-/* ================= DEAL DESCRIPTION ================= */
-
-function describeDeal(deal) {
-
-  if (!deal) {
-    return "";
-  }
-
-  const proposer =
-    findPlayerName(deal.proposerId);
-
-  const recipient =
-    findPlayerName(deal.recipientId);
-
-  const offer =
-    describeDealPart(deal.offer, true);
-
-  const request =
-    describeDealPart(deal.request, false);
-
-  return (
-    "<strong>" +
-    escapeHtml(proposer) +
-    "</strong> offers " +
-    escapeHtml(offer) +
-    " to " +
-    "<strong>" +
-    escapeHtml(recipient) +
-    "</strong>" +
-    " in exchange for " +
-    escapeHtml(request) +
-    "."
-  );
-}
-
-function describeDealPart(part, isOffer) {
-
-  if (!part) {
-    return "nothing";
-  }
-
-  if (part.type === "money") {
-
-    return "$" +
-      Number(part.amount || 0) +
-      " cash";
-  }
-
-  if (part.type === "protection") {
-    return "protection";
-  }
-
-  return "nothing";
-}
-
-function findPlayerName(id) {
-
-  if (!currentState) {
-    return "Unknown";
-  }
-
-  const player =
-    currentState.players.find(
-      function(p) {
-        return p.id === id;
-      }
-    );
-
-  return player
-    ? player.name
-    : "Unknown";
-}
-
-/* ================= RENDER DEALS ================= */
-
-function renderDeals() {
-
-  if (!currentState) {
-    return;
-  }
-
-  renderIncomingDeals();
-
-  renderActiveDeals();
-
-  renderDealHistory();
-}
-
-function renderIncomingDeals() {
-
-  const container =
-    document.getElementById(
-      "incomingDeals"
-    );
-
-  container.innerHTML = "";
-
-  const deals =
-    currentState.deals || [];
-
-  const incoming =
-    deals.filter(
-      function(deal) {
-
-        return (
-          deal.recipientId === currentState.you.id &&
-          deal.status === "pending"
-        );
-      }
-    );
-
-  if (incoming.length === 0) {
-
-    container.innerHTML =
-      "<div class='deal-empty'>" +
-      "No pending proposals." +
-      "</div>";
-
-    return;
-  }
-
-  incoming.forEach(
-    function(deal) {
-
-      const card =
-        document.createElement("div");
-
-      card.className =
-        "deal-card pending";
-
-      card.innerHTML =
-        "<div class='deal-title'>" +
-          "🤝 Proposal from " +
-          escapeHtml(
-            findPlayerName(deal.proposerId)
-          ) +
-        "</div>" +
-
-        "<div class='deal-details'>" +
-          describeDeal(deal) +
-        "</div>" +
-
-        "<div class='deal-buttons'>" +
-
-          "<button " +
-            "class='success' " +
-            "onclick=\"acceptDeal('" +
-            escapeHtml(deal.id) +
-            "')\">" +
-            "ACCEPT" +
-          "</button>" +
-
-          "<button " +
-            "class='danger' " +
-            "onclick=\"declineDeal('" +
-            escapeHtml(deal.id) +
-            "')\">" +
-            "DECLINE" +
-          "</button>" +
-
-        "</div>";
-
-      container.appendChild(card);
-    }
-  );
-}
-
-function renderActiveDeals() {
-
-  const container =
-    document.getElementById(
-      "activeDeals"
-    );
-
-  container.innerHTML = "";
-
-  const deals =
-    currentState.deals || [];
-
-  const active =
-    deals.filter(
-      function(deal) {
-
-        return (
-          deal.status === "accepted" &&
-          (
-            deal.proposerId === currentState.you.id ||
-            deal.recipientId === currentState.you.id
-          )
-        );
-      }
-    );
-
-  if (active.length === 0) {
-
-    container.innerHTML =
-      "<div class='deal-empty'>" +
-      "You have no active deals." +
-      "</div>";
-
-    return;
-  }
-
-  active.forEach(
-    function(deal) {
-
-      const card =
-        document.createElement("div");
-
-      card.className =
-        "deal-card active";
-
-      card.innerHTML =
-        "<div class='deal-title'>" +
-          "ACTIVE DEAL" +
-        "</div>" +
-
-        "<div class='deal-details'>" +
-          describeDeal(deal) +
-        "</div>" +
-
-        "<div class='deal-status'>" +
-          "Accepted" +
-        "</div>";
-
-      container.appendChild(card);
-    }
-  );
-}
-
-function renderDealHistory() {
-
-  const container =
-    document.getElementById(
-      "dealHistory"
-    );
-
-  container.innerHTML = "";
-
-  const deals =
-    currentState.deals || [];
-
-  const history =
-    deals.filter(
-      function(deal) {
-
-        return (
-          deal.status !== "pending" &&
-          deal.status !== "accepted" &&
-          (
-            deal.proposerId === currentState.you.id ||
-            deal.recipientId === currentState.you.id
-          )
-        );
-      }
-    );
-
-  if (history.length === 0) {
-
-    container.innerHTML =
-      "<div class='deal-empty'>" +
-      "No completed deals yet." +
-      "</div>";
-
-    return;
-  }
-
-  history.slice().reverse().forEach(
-    function(deal) {
-
-      const card =
-        document.createElement("div");
-
-      card.className =
-        "deal-card history";
-
-      let status =
-        String(deal.status || "")
-          .toUpperCase();
-
-      card.innerHTML =
-        "<div class='deal-title'>" +
-          status +
-        "</div>" +
-
-        "<div class='deal-details'>" +
-          describeDeal(deal) +
-        "</div>";
-
-      container.appendChild(card);
-    }
-  );
-}
-
-/* ================= STATE ================= */
-
-socket.on(
-  "errorMessage",
-  function(message) {
-    alert(message);
-  }
-);
+/* =========================================================
+   STATE
+========================================================= */
 
 socket.on(
   "state",
@@ -1537,20 +1390,129 @@ socket.on(
 
     if (!state.started) {
 
-      showScreen(lobbyScreen);
+      showScreen(
+        lobbyScreen
+      );
 
       renderLobby();
 
       return;
     }
 
-    showScreen(gameScreen);
+    showScreen(
+      gameScreen
+    );
 
     renderGame();
   }
 );
 
-/* ================= LOBBY ================= */
+
+socket.on(
+  "errorMessage",
+  function(message) {
+
+    alert(message);
+  }
+);
+
+
+/* =========================================================
+   PRIVATE POWER RESULTS
+========================================================= */
+
+socket.on(
+  "privatePowerResult",
+  function(data) {
+
+    let message = "";
+
+    if (typeof data === "string") {
+
+      message = data;
+
+    } else if (data) {
+
+      message =
+        data.message ||
+        data.text ||
+        "";
+
+      if (
+        !message &&
+        data.boxNumber &&
+        data.result
+      ) {
+
+        message =
+          "Box " +
+          data.boxNumber +
+          " is " +
+          data.result +
+          ".";
+      }
+    }
+
+    if (!message) {
+      return;
+    }
+
+    showPrivateMessage(
+      message
+    );
+  }
+);
+
+
+/*
+  Also support privateMessage so this frontend
+  remains compatible if we use that event later.
+*/
+
+socket.on(
+  "privateMessage",
+  function(message) {
+
+    showPrivateMessage(
+      typeof message === "string"
+        ? message
+        : message.message
+    );
+  }
+);
+
+
+function showPrivateMessage(message) {
+
+  const box =
+    document.getElementById(
+      "privateResult"
+    );
+
+  box.textContent =
+    "PRIVATE: " +
+    message;
+
+  box.classList.remove(
+    "hidden"
+  );
+
+  setTimeout(
+    function() {
+
+      box.classList.add(
+        "hidden"
+      );
+
+    },
+    6000
+  );
+}
+
+
+/* =========================================================
+   LOBBY
+========================================================= */
 
 function renderLobby() {
 
@@ -1567,10 +1529,12 @@ function renderLobby() {
   container.innerHTML = "";
 
   currentState.players.forEach(
-    function(player) {
+    function(player, index) {
 
       const div =
-        document.createElement("div");
+        document.createElement(
+          "div"
+        );
 
       div.className =
         "player";
@@ -1584,8 +1548,7 @@ function renderLobby() {
 
           "<div class='player-meta'>" +
             (
-              player.id ===
-              currentState.players[0].id
+              index === 0
                 ? "Host"
                 : "Player"
             ) +
@@ -1593,41 +1556,52 @@ function renderLobby() {
 
         "</div>";
 
-      container.appendChild(div);
+      container.appendChild(
+        div
+      );
     }
   );
 }
 
-/* ================= GAME ================= */
+
+/* =========================================================
+   GAME
+========================================================= */
 
 function renderGame() {
 
+  if (
+    !currentState ||
+    !currentState.you
+  ) {
+    return;
+  }
+
   renderTurn();
-
   renderStats();
-
   renderBoxes();
-
   renderPlayers();
-
   renderObjective();
 
   renderPowers();
+  renderPowerInventory();
 
   renderDeals();
-
   renderLog();
-
   renderGameOver();
 }
 
-/* ================= TURN ================= */
+
+/* =========================================================
+   TURN
+========================================================= */
 
 function renderTurn() {
 
   const turnPlayer =
     currentState.players.find(
       function(player) {
+
         return (
           player.id ===
           currentState.currentTurn
@@ -1652,7 +1626,14 @@ function renderTurn() {
 
   if (!turnPlayer) {
 
+    banner.classList.remove(
+      "your-turn"
+    );
+
     name.textContent =
+      "Waiting...";
+
+    instruction.textContent =
       "Waiting...";
 
     return;
@@ -1692,7 +1673,10 @@ function renderTurn() {
   }
 }
 
-/* ================= STATS ================= */
+
+/* =========================================================
+   STATS
+========================================================= */
 
 function renderStats() {
 
@@ -1713,7 +1697,10 @@ function renderStats() {
     currentState.you.cash;
 }
 
-/* ================= BOXES ================= */
+
+/* =========================================================
+   BOXES
+========================================================= */
 
 function renderBoxes() {
 
@@ -1732,7 +1719,9 @@ function renderBoxes() {
     function(box) {
 
       const button =
-        document.createElement("button");
+        document.createElement(
+          "button"
+        );
 
       button.className =
         "box";
@@ -1746,7 +1735,12 @@ function renderBoxes() {
           "opened"
         );
 
-        if (box.result === "SAFE") {
+        button.disabled = true;
+
+        if (
+          box.result ===
+          "SAFE"
+        ) {
 
           button.classList.add(
             "safe"
@@ -1769,7 +1763,8 @@ function renderBoxes() {
 
         button.disabled =
           !myTurn ||
-          !currentState.you.alive;
+          !currentState.you.alive ||
+          currentState.finished;
 
         button.addEventListener(
           "click",
@@ -1800,7 +1795,10 @@ function renderBoxes() {
   );
 }
 
-/* ================= PLAYERS ================= */
+
+/* =========================================================
+   PLAYERS
+========================================================= */
 
 function renderPlayers() {
 
@@ -1815,7 +1813,9 @@ function renderPlayers() {
     function(player, index) {
 
       const div =
-        document.createElement("div");
+        document.createElement(
+          "div"
+        );
 
       div.className =
         "player";
@@ -1824,12 +1824,14 @@ function renderPlayers() {
         player.id ===
         currentState.currentTurn
       ) {
+
         div.classList.add(
           "active"
         );
       }
 
       if (!player.alive) {
+
         div.classList.add(
           "dead"
         );
@@ -1867,9 +1869,26 @@ function renderPlayers() {
           "</span>";
       }
 
+      if (player.protection) {
+
+        badges +=
+          "<span class='badge'>" +
+          "🛡️" +
+          "</span>";
+      }
+
+      if (player.secondChance) {
+
+        badges +=
+          "<span class='badge'>" +
+          "↩️" +
+          "</span>";
+      }
+
       const type =
         player.isNPC
-          ? player.personality || "NPC"
+          ? player.personality ||
+            "NPC"
           : "Human";
 
       div.innerHTML =
@@ -1879,7 +1898,9 @@ function renderPlayers() {
           "<div class='player-name'>" +
             (index + 1) +
             ". " +
-            escapeHtml(player.name) +
+            escapeHtml(
+              player.name
+            ) +
             badges +
           "</div>" +
 
@@ -1894,28 +1915,48 @@ function renderPlayers() {
           player.cash +
         "</div>";
 
-      container.appendChild(div);
+      container.appendChild(
+        div
+      );
     }
   );
 }
 
-/* ================= OBJECTIVE ================= */
+
+/* =========================================================
+   OBJECTIVE
+========================================================= */
 
 function renderObjective() {
 
   const objective =
     currentState.you.objective;
 
-  document.getElementById(
-    "objective"
-  ).innerHTML =
+  const container =
+    document.getElementById(
+      "objective"
+    );
+
+  if (!objective) {
+
+    container.textContent =
+      "No objective.";
+
+    return;
+  }
+
+  container.innerHTML =
 
     "<div class='objective-name'>" +
-      escapeHtml(objective.name) +
+      escapeHtml(
+        objective.name
+      ) +
     "</div>" +
 
     "<div class='objective-text'>" +
-      escapeHtml(objective.text) +
+      escapeHtml(
+        objective.text
+      ) +
     "</div>" +
 
     "<div style='margin-top:10px;font-weight:bold;'>" +
@@ -1924,7 +1965,10 @@ function renderObjective() {
     "</div>";
 }
 
-/* ================= POWERS ================= */
+
+/* =========================================================
+   POWER STORE
+========================================================= */
 
 function renderPowers() {
 
@@ -1939,20 +1983,30 @@ function renderPowers() {
     function(power) {
 
       const button =
-        document.createElement("button");
+        document.createElement(
+          "button"
+        );
 
       button.className =
         "power-button";
 
       button.innerHTML =
+
         "<strong>" +
           escapeHtml(power) +
         "</strong>" +
-        "<small>$60</small>";
+
+        "<small>" +
+          "$" +
+          POWER_COST +
+          " — BUY" +
+        "</small>";
 
       button.disabled =
+        currentState.finished ||
+        !currentState.you.alive ||
         currentState.you.cash <
-        POWER_COST;
+          POWER_COST;
 
       button.addEventListener(
         "click",
@@ -1974,7 +2028,1235 @@ function renderPowers() {
   );
 }
 
-/* ================= LOG ================= */
+
+/* =========================================================
+   POWER INVENTORY
+========================================================= */
+
+function renderPowerInventory() {
+
+  const container =
+    document.getElementById(
+      "powerInventory"
+    );
+
+  const status =
+    document.getElementById(
+      "powerStatus"
+    );
+
+  container.innerHTML = "";
+  status.innerHTML = "";
+
+  if (
+    currentState.you.protection
+  ) {
+
+    status.innerHTML +=
+      "<span class='status-pill'>" +
+      "🛡 Protection Active" +
+      "</span>";
+  }
+
+  if (
+    currentState.you.secondChance
+  ) {
+
+    status.innerHTML +=
+      "<span class='status-pill'>" +
+      "↩ Second Chance Active" +
+      "</span>";
+  }
+
+  if (status.innerHTML) {
+
+    status.style.marginBottom =
+      "12px";
+
+  } else {
+
+    status.style.marginBottom =
+      "0";
+  }
+
+  const powers =
+    currentState.you.powers ||
+    [];
+
+  if (!powers.length) {
+
+    container.innerHTML =
+      "<div class='deal-empty'>" +
+      "You don't own any powers yet." +
+      "</div>";
+
+    return;
+  }
+
+  const counts = {};
+
+  powers.forEach(
+    function(power) {
+
+      counts[power] =
+        (
+          counts[power] ||
+          0
+        ) + 1;
+    }
+  );
+
+  Object.keys(
+    counts
+  ).forEach(
+    function(power) {
+
+      const row =
+        document.createElement(
+          "div"
+        );
+
+      row.className =
+        "inventory-item";
+
+      const info =
+        document.createElement(
+          "div"
+        );
+
+      info.innerHTML =
+
+        "<div class='inventory-name'>" +
+          escapeHtml(power) +
+        "</div>" +
+
+        "<div class='inventory-count'>" +
+          "Owned: " +
+          counts[power] +
+        "</div>";
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+      button.className =
+        "primary";
+
+      button.textContent =
+        "USE";
+
+      button.disabled =
+        currentState.finished ||
+        !currentState.you.alive;
+
+      button.addEventListener(
+        "click",
+        function() {
+
+          openPowerModal(
+            power
+          );
+        }
+      );
+
+      row.appendChild(
+        info
+      );
+
+      row.appendChild(
+        button
+      );
+
+      container.appendChild(
+        row
+      );
+    }
+  );
+}
+
+
+/* =========================================================
+   POWER HELPERS
+========================================================= */
+
+function getPowerTargets() {
+
+  return currentState.players.filter(
+    function(player) {
+
+      return (
+        player.alive &&
+        player.id !==
+          currentState.you.id
+      );
+    }
+  );
+}
+
+
+function getUnopenedBoxes() {
+
+  return currentState.boxes.filter(
+    function(box) {
+
+      return !box.opened;
+    }
+  );
+}
+
+
+function playerOptions() {
+
+  const players =
+    getPowerTargets();
+
+  if (!players.length) {
+
+    return (
+      "<option value=''>" +
+      "No available players" +
+      "</option>"
+    );
+  }
+
+  return players.map(
+    function(player) {
+
+      return (
+        "<option value='" +
+          escapeHtml(
+            player.id
+          ) +
+        "'>" +
+
+          escapeHtml(
+            player.name
+          ) +
+
+        "</option>"
+      );
+    }
+  ).join("");
+}
+
+
+function boxOptions() {
+
+  const boxes =
+    getUnopenedBoxes();
+
+  if (!boxes.length) {
+
+    return (
+      "<option value=''>" +
+      "No unopened boxes" +
+      "</option>"
+    );
+  }
+
+  return boxes.map(
+    function(box) {
+
+      return (
+        "<option value='" +
+          box.number +
+        "'>" +
+
+          "Box " +
+          box.number +
+
+        "</option>"
+      );
+    }
+  ).join("");
+}
+
+
+/* =========================================================
+   POWER MODAL
+========================================================= */
+
+function openPowerModal(power) {
+
+  pendingPower =
+    power;
+
+  const backdrop =
+    document.getElementById(
+      "powerModalBackdrop"
+    );
+
+  const title =
+    document.getElementById(
+      "powerModalTitle"
+    );
+
+  const text =
+    document.getElementById(
+      "powerModalText"
+    );
+
+  const fields =
+    document.getElementById(
+      "powerModalFields"
+    );
+
+  title.textContent =
+    "Use " +
+    power;
+
+  fields.innerHTML = "";
+
+  /* PROTECTION */
+
+  if (
+    power ===
+    "Protection"
+  ) {
+
+    text.textContent =
+      "Choose another living player. Their next elimination will be blocked.";
+
+    fields.innerHTML =
+
+      "<label>" +
+        "Choose Player" +
+      "</label>" +
+
+      "<select id='powerTargetSelect'>" +
+        playerOptions() +
+      "</select>";
+  }
+
+  /* REVEAL */
+
+  else if (
+    power ===
+    "Reveal"
+  ) {
+
+    text.textContent =
+      "Choose an unopened box. Its hidden result will be revealed privately to you.";
+
+    fields.innerHTML =
+
+      "<label>" +
+        "Choose Box" +
+      "</label>" +
+
+      "<select id='powerBoxSelect'>" +
+        boxOptions() +
+      "</select>";
+  }
+
+  /* SECOND CHANCE */
+
+  else if (
+    power ===
+    "Second Chance"
+  ) {
+
+    text.textContent =
+      "Activate this on yourself. Your next elimination will be blocked.";
+
+    fields.innerHTML =
+      "<div class='deal-notice'>" +
+      "This power is used on yourself." +
+      "</div>";
+  }
+
+  /* STEAL */
+
+  else if (
+    power ===
+    "Steal"
+  ) {
+
+    text.textContent =
+      "Choose another living player. You will steal up to $50 from them.";
+
+    fields.innerHTML =
+
+      "<label>" +
+        "Choose Player" +
+      "</label>" +
+
+      "<select id='powerTargetSelect'>" +
+        playerOptions() +
+      "</select>";
+  }
+
+  /* SABOTAGE */
+
+  else if (
+    power ===
+    "Sabotage"
+  ) {
+
+    text.textContent =
+      "Choose another living player. They will lose up to $50.";
+
+    fields.innerHTML =
+
+      "<label>" +
+        "Choose Player" +
+      "</label>" +
+
+      "<select id='powerTargetSelect'>" +
+        playerOptions() +
+      "</select>";
+  }
+
+  /* ROYAL ASSIGNMENT */
+
+  else if (
+    power ===
+    "Royal Assignment"
+  ) {
+
+    text.textContent =
+      "Choose another living player. They must take the next turn.";
+
+    fields.innerHTML =
+
+      "<label>" +
+        "Choose Player" +
+      "</label>" +
+
+      "<select id='powerTargetSelect'>" +
+        playerOptions() +
+      "</select>";
+  }
+
+  /* PREDICTION */
+
+  else if (
+    power ===
+    "Prediction"
+  ) {
+
+    text.textContent =
+      "Choose an unopened box and predict whether it is SAFE or ELIMINATED.";
+
+    fields.innerHTML =
+
+      "<label>" +
+        "Choose Box" +
+      "</label>" +
+
+      "<select id='powerBoxSelect'>" +
+        boxOptions() +
+      "</select>" +
+
+      "<label>" +
+        "Prediction" +
+      "</label>" +
+
+      "<select id='predictionSelect'>" +
+
+        "<option value='SAFE'>" +
+          "SAFE" +
+        "</option>" +
+
+        "<option value='ELIMINATED'>" +
+          "ELIMINATED" +
+        "</option>" +
+
+      "</select>";
+  }
+
+  /* SWAP */
+
+  else if (
+    power ===
+    "Swap"
+  ) {
+
+    text.textContent =
+      "Choose two unopened boxes. Their hidden SAFE/ELIMINATED contents will be swapped.";
+
+    const options =
+      boxOptions();
+
+    fields.innerHTML =
+
+      "<label>" +
+        "First Box" +
+      "</label>" +
+
+      "<select id='powerBoxSelect'>" +
+        options +
+      "</select>" +
+
+      "<label>" +
+        "Second Box" +
+      "</label>" +
+
+      "<select id='powerSecondBoxSelect'>" +
+        options +
+      "</select>";
+  }
+
+  backdrop.classList.remove(
+    "hidden"
+  );
+}
+
+
+function closePowerModal() {
+
+  pendingPower = null;
+
+  document
+    .getElementById(
+      "powerModalBackdrop"
+    )
+    .classList.add(
+      "hidden"
+    );
+}
+
+
+document
+  .getElementById(
+    "cancelPowerButton"
+  )
+  .addEventListener(
+    "click",
+    closePowerModal
+  );
+
+
+/* =========================================================
+   USE POWER
+========================================================= */
+
+document
+  .getElementById(
+    "confirmPowerButton"
+  )
+  .addEventListener(
+    "click",
+    function() {
+
+      if (!pendingPower) {
+        return;
+      }
+
+      const data = {
+        power: pendingPower
+      };
+
+      const target =
+        document.getElementById(
+          "powerTargetSelect"
+        );
+
+      const box =
+        document.getElementById(
+          "powerBoxSelect"
+        );
+
+      const secondBox =
+        document.getElementById(
+          "powerSecondBoxSelect"
+        );
+
+      const prediction =
+        document.getElementById(
+          "predictionSelect"
+        );
+
+      if (target) {
+
+        if (!target.value) {
+
+          alert(
+            "Choose a player."
+          );
+
+          return;
+        }
+
+        data.targetId =
+          target.value;
+      }
+
+      if (box) {
+
+        if (!box.value) {
+
+          alert(
+            "Choose a box."
+          );
+
+          return;
+        }
+
+        data.boxNumber =
+          Number(
+            box.value
+          );
+      }
+
+      if (secondBox) {
+
+        if (!secondBox.value) {
+
+          alert(
+            "Choose the second box."
+          );
+
+          return;
+        }
+
+        data.secondBoxNumber =
+          Number(
+            secondBox.value
+          );
+      }
+
+      if (prediction) {
+
+        data.prediction =
+          prediction.value;
+      }
+
+      if (
+        pendingPower ===
+          "Swap" &&
+        data.boxNumber ===
+          data.secondBoxNumber
+      ) {
+
+        alert(
+          "Choose two different boxes."
+        );
+
+        return;
+      }
+
+      socket.emit(
+        "usePower",
+        data
+      );
+
+      closePowerModal();
+    }
+  );
+
+
+/* =========================================================
+   DEAL FORM
+========================================================= */
+
+makeDealButton.addEventListener(
+  "click",
+  function() {
+
+    dealForm.classList.toggle(
+      "hidden"
+    );
+
+    populateDealTargets();
+    updateDealInputs();
+  }
+);
+
+
+cancelDealButton.addEventListener(
+  "click",
+  function() {
+
+    dealForm.classList.add(
+      "hidden"
+    );
+  }
+);
+
+
+dealOfferType.addEventListener(
+  "change",
+  updateDealInputs
+);
+
+
+dealRequestType.addEventListener(
+  "change",
+  updateDealInputs
+);
+
+
+function updateDealInputs() {
+
+  dealOfferAmount.style.display =
+    dealOfferType.value ===
+    "money"
+      ? "block"
+      : "none";
+
+  dealRequestAmount.style.display =
+    dealRequestType.value ===
+    "money"
+      ? "block"
+      : "none";
+}
+
+
+function populateDealTargets() {
+
+  dealTarget.innerHTML = "";
+
+  if (!currentState) {
+    return;
+  }
+
+  const players =
+    currentState.players.filter(
+      function(player) {
+
+        return (
+          player.alive &&
+          player.id !==
+            currentState.you.id
+        );
+      }
+    );
+
+  players.forEach(
+    function(player) {
+
+      const option =
+        document.createElement(
+          "option"
+        );
+
+      option.value =
+        player.id;
+
+      option.textContent =
+        player.name;
+
+      dealTarget.appendChild(
+        option
+      );
+    }
+  );
+}
+
+
+sendDealButton.addEventListener(
+  "click",
+  function() {
+
+    if (!dealTarget.value) {
+
+      alert(
+        "Choose a player."
+      );
+
+      return;
+    }
+
+    const offer = {
+      type:
+        dealOfferType.value
+    };
+
+    const request = {
+      type:
+        dealRequestType.value
+    };
+
+    if (
+      offer.type ===
+      "money"
+    ) {
+
+      const amount =
+        Math.floor(
+          Number(
+            dealOfferAmount.value
+          )
+        );
+
+      if (
+        !Number.isFinite(amount) ||
+        amount <= 0
+      ) {
+
+        alert(
+          "Enter a valid offer amount."
+        );
+
+        return;
+      }
+
+      offer.amount =
+        amount;
+    }
+
+    if (
+      request.type ===
+      "money"
+    ) {
+
+      const amount =
+        Math.floor(
+          Number(
+            dealRequestAmount.value
+          )
+        );
+
+      if (
+        !Number.isFinite(amount) ||
+        amount <= 0
+      ) {
+
+        alert(
+          "Enter a valid requested amount."
+        );
+
+        return;
+      }
+
+      request.amount =
+        amount;
+    }
+
+    socket.emit(
+      "makeDeal",
+      {
+        recipientId:
+          dealTarget.value,
+
+        offer:
+          offer,
+
+        request:
+          request
+      }
+    );
+
+    dealForm.classList.add(
+      "hidden"
+    );
+
+    dealOfferAmount.value = "";
+    dealRequestAmount.value = "";
+  }
+);
+
+
+/* =========================================================
+   DEAL DESCRIPTION
+========================================================= */
+
+function describeDeal(deal) {
+
+  let offerText = "";
+
+  let requestText = "";
+
+  if (
+    deal.offer.type ===
+    "money"
+  ) {
+
+    offerText =
+      "$" +
+      deal.offer.amount;
+
+  } else {
+
+    offerText =
+      "Protection";
+  }
+
+  if (
+    deal.request.type ===
+    "money"
+  ) {
+
+    requestText =
+      "$" +
+      deal.request.amount;
+
+  } else if (
+    deal.request.type ===
+    "protection"
+  ) {
+
+    requestText =
+      "Protection";
+
+  } else {
+
+    requestText =
+      "nothing";
+  }
+
+  return (
+    escapeHtml(
+      deal.proposerName
+    ) +
+    " offers " +
+    escapeHtml(
+      offerText
+    ) +
+    " to " +
+    escapeHtml(
+      deal.recipientName
+    ) +
+    " in exchange for " +
+    escapeHtml(
+      requestText
+    ) +
+    "."
+  );
+}
+
+
+/* =========================================================
+   ACCEPT / DECLINE
+========================================================= */
+
+function acceptDeal(
+  dealId
+) {
+
+  socket.emit(
+    "acceptDeal",
+    {
+      dealId: dealId
+    }
+  );
+}
+
+
+function declineDeal(
+  dealId
+) {
+
+  socket.emit(
+    "declineDeal",
+    {
+      dealId: dealId
+    }
+  );
+}
+
+
+/* =========================================================
+   RENDER DEALS
+========================================================= */
+
+function renderDeals() {
+
+  populateDealTargets();
+
+  renderIncomingDeals();
+  renderActiveDeals();
+  renderDealHistory();
+
+  makeDealButton.disabled =
+    currentState.finished ||
+    !currentState.you.alive;
+}
+
+
+function renderIncomingDeals() {
+
+  const container =
+    document.getElementById(
+      "incomingDeals"
+    );
+
+  container.innerHTML = "";
+
+  const deals =
+    currentState.deals || [];
+
+  const incoming =
+    deals.filter(
+      function(deal) {
+
+        return (
+          deal.status ===
+            "pending" &&
+          deal.recipientId ===
+            currentState.you.id
+        );
+      }
+    );
+
+  if (!incoming.length) {
+
+    container.innerHTML =
+      "<div class='deal-empty'>" +
+      "No incoming deals." +
+      "</div>";
+
+    return;
+  }
+
+  incoming.forEach(
+    function(deal) {
+
+      const card =
+        document.createElement(
+          "div"
+        );
+
+      card.className =
+        "deal-card";
+
+      const title =
+        document.createElement(
+          "div"
+        );
+
+      title.className =
+        "deal-title";
+
+      title.textContent =
+        "DEAL FROM " +
+        deal.proposerName;
+
+      const details =
+        document.createElement(
+          "div"
+        );
+
+      details.className =
+        "deal-details";
+
+      details.textContent =
+        describeDeal(deal);
+
+      const buttons =
+        document.createElement(
+          "div"
+        );
+
+      buttons.className =
+        "deal-buttons";
+
+      const accept =
+        document.createElement(
+          "button"
+        );
+
+      accept.className =
+        "success";
+
+      accept.textContent =
+        "ACCEPT";
+
+      accept.addEventListener(
+        "click",
+        function() {
+
+          acceptDeal(
+            deal.id
+          );
+        }
+      );
+
+      const decline =
+        document.createElement(
+          "button"
+        );
+
+      decline.className =
+        "danger";
+
+      decline.textContent =
+        "DECLINE";
+
+      decline.addEventListener(
+        "click",
+        function() {
+
+          declineDeal(
+            deal.id
+          );
+        }
+      );
+
+      buttons.appendChild(
+        accept
+      );
+
+      buttons.appendChild(
+        decline
+      );
+
+      card.appendChild(
+        title
+      );
+
+      card.appendChild(
+        details
+      );
+
+      card.appendChild(
+        buttons
+      );
+
+      container.appendChild(
+        card
+      );
+    }
+  );
+}
+
+
+function renderActiveDeals() {
+
+  const container =
+    document.getElementById(
+      "activeDeals"
+    );
+
+  container.innerHTML = "";
+
+  const deals =
+    currentState.deals || [];
+
+  const active =
+    deals.filter(
+      function(deal) {
+
+        return (
+          deal.status ===
+          "accepted"
+        );
+      }
+    );
+
+  if (!active.length) {
+
+    container.innerHTML =
+      "<div class='deal-empty'>" +
+      "You have no active deals." +
+      "</div>";
+
+    return;
+  }
+
+  active.forEach(
+    function(deal) {
+
+      const card =
+        document.createElement(
+          "div"
+        );
+
+      card.className =
+        "deal-card active";
+
+      card.innerHTML =
+
+        "<div class='deal-title'>" +
+          "ACTIVE DEAL" +
+        "</div>" +
+
+        "<div class='deal-details'>" +
+          describeDeal(
+            deal
+          ) +
+        "</div>" +
+
+        "<div class='deal-status'>" +
+          "Accepted" +
+        "</div>";
+
+      container.appendChild(
+        card
+      );
+    }
+  );
+}
+
+
+function renderDealHistory() {
+
+  const container =
+    document.getElementById(
+      "dealHistory"
+    );
+
+  container.innerHTML = "";
+
+  const deals =
+    currentState.deals || [];
+
+  const history =
+    deals.filter(
+      function(deal) {
+
+        return (
+          deal.status !==
+            "pending" &&
+          deal.status !==
+            "accepted"
+        );
+      }
+    );
+
+  if (!history.length) {
+
+    container.innerHTML =
+      "<div class='deal-empty'>" +
+      "No completed deals yet." +
+      "</div>";
+
+    return;
+  }
+
+  history
+    .slice()
+    .reverse()
+    .forEach(
+      function(deal) {
+
+        const card =
+          document.createElement(
+            "div"
+          );
+
+        card.className =
+          "deal-card history";
+
+        card.innerHTML =
+
+          "<div class='deal-title'>" +
+            escapeHtml(
+              String(
+                deal.status
+              ).toUpperCase()
+            ) +
+          "</div>" +
+
+          "<div class='deal-details'>" +
+            describeDeal(
+              deal
+            ) +
+          "</div>";
+
+        container.appendChild(
+          card
+        );
+      }
+    );
+}
+
+
+/* =========================================================
+   LOG
+========================================================= */
 
 function renderLog() {
 
@@ -1985,7 +3267,10 @@ function renderLog() {
 
   container.innerHTML = "";
 
-  currentState.log
+  const log =
+    currentState.log || [];
+
+  log
     .slice()
     .reverse()
     .forEach(
@@ -2009,7 +3294,10 @@ function renderLog() {
     );
 }
 
-/* ================= GAME OVER ================= */
+
+/* =========================================================
+   GAME OVER
+========================================================= */
 
 function renderGameOver() {
 
@@ -2018,7 +3306,9 @@ function renderGameOver() {
       "gameOverCard"
     );
 
-  if (!currentState.finished) {
+  if (
+    !currentState.finished
+  ) {
 
     card.classList.add(
       "hidden"
@@ -2034,42 +3324,95 @@ function renderGameOver() {
   const survivors =
     currentState.players.filter(
       function(player) {
+
         return player.alive;
       }
     );
 
-  let text;
+  let text = "";
 
-  if (survivors.length === 1) {
+  if (
+    survivors.length === 1
+  ) {
 
     text =
       survivors[0].name +
       " is the final survivor!";
 
+  } else if (
+    survivors.length > 1
+  ) {
+
+    text =
+      "Survivors: " +
+      survivors
+        .map(
+          function(player) {
+            return player.name;
+          }
+        )
+        .join(", ");
+
   } else {
 
     text =
-      survivors.length +
-      " players survived.";
+      "There were no survivors.";
   }
 
   document.getElementById(
     "gameOverText"
   ).textContent =
     text;
+
+  const golden =
+    document.getElementById(
+      "goldenBoxText"
+    );
+
+  if (
+    currentState.goldenBox
+  ) {
+
+    golden.textContent =
+      "⭐ The Golden Box was Box " +
+      currentState.goldenBox +
+      ".";
+
+  } else {
+
+    golden.textContent = "";
+  }
 }
 
-/* ================= SECURITY ================= */
 
-function escapeHtml(value) {
+/* =========================================================
+   CLOSE MODAL BY CLICKING BACKGROUND
+========================================================= */
 
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
+document
+  .getElementById(
+    "powerModalBackdrop"
+  )
+  .addEventListener(
+    "click",
+    function(event) {
+
+      if (
+        event.target ===
+        this
+      ) {
+
+        closePowerModal();
+      }
+    }
+  );
+
+
+/* =========================================================
+   INITIAL DEAL INPUT STATE
+========================================================= */
+
+updateDealInputs();
 
 </script>
 
