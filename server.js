@@ -2181,277 +2181,395 @@ io.on(
         }
       }
     );
+/* =====================================================
+   MAKE DEAL
+===================================================== */
 
-    /* =====================================================
-       MAKE DEAL
-    ===================================================== */
+socket.on(
+  "makeDeal",
+  function (data) {
 
-    socket.on(
-      "makeDeal",
-      function (data) {
+    /*
+      Accept both the new frontend format
+      and the older server format.
+    */
 
-        const targetId =
-          data &&
-          data.targetId;
+    const targetId =
+      data &&
+      (
+        data.recipientId ||
+        data.targetId
+      );
 
-        const offerType =
-          data &&
-          data.offerType;
+    let offer;
+    let request;
 
-        const offerAmount =
-          Number(
-            data &&
-            data.offerAmount
+    /*
+      NEW FORMAT
+      {
+        recipientId,
+        offer: {
+          type,
+          amount
+        },
+        request: {
+          type,
+          amount
+        }
+      }
+    */
+
+    if (
+      data &&
+      data.offer &&
+      data.request
+    ) {
+
+      offer = {
+        type: data.offer.type
+      };
+
+      if (
+        data.offer.type === "money"
+      ) {
+        offer.amount =
+          Math.floor(
+            Number(
+              data.offer.amount
+            )
           );
+      }
 
-        const requestType =
-          data &&
-          data.requestType;
+      request = {
+        type: data.request.type
+      };
 
-        const requestAmount =
-          Number(
-            data &&
-            data.requestAmount
+      if (
+        data.request.type === "money"
+      ) {
+        request.amount =
+          Math.floor(
+            Number(
+              data.request.amount
+            )
           );
+      }
 
-        for (
-          const room
-          of rooms.values()
+    }
+
+    /*
+      OLD FORMAT
+      {
+        targetId,
+        offerType,
+        offerAmount,
+        requestType,
+        requestAmount
+      }
+    */
+
+    else {
+
+      const offerType =
+        data &&
+        data.offerType;
+
+      const offerAmount =
+        Number(
+          data &&
+          data.offerAmount
+        );
+
+      const requestType =
+        data &&
+        data.requestType;
+
+      const requestAmount =
+        Number(
+          data &&
+          data.requestAmount
+        );
+
+      if (
+        offerType === "money"
+      ) {
+
+        offer = {
+          type: "money",
+          amount:
+            Math.floor(
+              offerAmount
+            )
+        };
+
+      } else {
+
+        offer = {
+          type: "protection"
+        };
+      }
+
+      if (
+        requestType === "money"
+      ) {
+
+        request = {
+          type: "money",
+          amount:
+            Math.floor(
+              requestAmount
+            )
+        };
+
+      } else if (
+        requestType === "protection"
+      ) {
+
+        request = {
+          type: "protection"
+        };
+
+      } else {
+
+        request = {
+          type: "nothing"
+        };
+      }
+    }
+
+    /*
+      Find the room containing
+      the player who made the proposal.
+    */
+
+    for (
+      const room
+      of rooms.values()
+    ) {
+
+      const proposer =
+        room.players.find(
+          function (p) {
+            return (
+              p.id ===
+              socket.id
+            );
+          }
+        );
+
+      if (!proposer) {
+        continue;
+      }
+
+      if (
+        !room.started ||
+        room.finished
+      ) {
+
+        socket.emit(
+          "errorMessage",
+          "You cannot make deals right now."
+        );
+
+        return;
+      }
+
+      const target =
+        getPlayer(
+          room,
+          targetId
+        );
+
+      if (
+        !target ||
+        !target.alive
+      ) {
+
+        socket.emit(
+          "errorMessage",
+          "That player is unavailable."
+        );
+
+        return;
+      }
+
+      if (
+        target.id ===
+        proposer.id
+      ) {
+
+        socket.emit(
+          "errorMessage",
+          "You cannot make a deal with yourself."
+        );
+
+        return;
+      }
+
+      /*
+        Validate money offer.
+      */
+
+      if (
+        offer.type === "money"
+      ) {
+
+        if (
+          !Number.isFinite(
+            offer.amount
+          ) ||
+          offer.amount <= 0
         ) {
 
-          const proposer =
-            room.players.find(
-              function (p) {
-                return (
-                  p.id ===
-                  socket.id
-                );
-              }
-            );
+          socket.emit(
+            "errorMessage",
+            "Enter a valid offer amount."
+          );
 
-          if (!proposer) {
-            continue;
-          }
+          return;
+        }
 
-          if (
-            !room.started ||
-            room.finished
-          ) {
-            socket.emit(
-              "errorMessage",
-              "You cannot make deals right now."
-            );
+        if (
+          offer.amount >
+          proposer.cash
+        ) {
 
-            return;
-          }
-
-          const target =
-            getPlayer(
-              room,
-              targetId
-            );
-
-          if (
-            !target ||
-            !target.alive
-          ) {
-            socket.emit(
-              "errorMessage",
-              "That player is unavailable."
-            );
-
-            return;
-          }
-
-          if (
-            target.id ===
-            proposer.id
-          ) {
-            return;
-          }
-
-          let offer;
-          let request;
-
-          if (
-            offerType ===
-            "money"
-          ) {
-
-            if (
-              !Number.isFinite(
-                offerAmount
-              ) ||
-              offerAmount <= 0
-            ) {
-              socket.emit(
-                "errorMessage",
-                "Enter a valid offer amount."
-              );
-
-              return;
-            }
-
-            if (
-              offerAmount >
-              proposer.cash
-            ) {
-              socket.emit(
-                "errorMessage",
-                "You do not have enough cash."
-              );
-
-              return;
-            }
-
-            offer = {
-              type: "money",
-              amount:
-                Math.floor(
-                  offerAmount
-                )
-            };
-
-          } else {
-
-            offer = {
-              type: "protection"
-            };
-          }
-
-          if (
-            requestType ===
-            "money"
-          ) {
-
-            if (
-              !Number.isFinite(
-                requestAmount
-              ) ||
-              requestAmount <= 0
-            ) {
-              socket.emit(
-                "errorMessage",
-                "Enter a valid requested amount."
-              );
-
-              return;
-            }
-
-            request = {
-              type: "money",
-              amount:
-                Math.floor(
-                  requestAmount
-                )
-            };
-
-          } else if (
-            requestType ===
-            "protection"
-          ) {
-
-            request = {
-              type: "protection"
-            };
-
-          } else {
-
-            request = {
-              type: "nothing"
-            };
-          }
-
-          const deal =
-            createDeal(
-              room,
-              proposer.id,
-              target.id,
-              offer,
-              request
-            );
-
-          if (!deal) {
-            socket.emit(
-              "errorMessage",
-              "Unable to create that deal."
-            );
-
-            return;
-          }
-
-          emitRoom(room);
-
-          /*
-            If the target is an NPC,
-            let the NPC think about it.
-          */
-
-          if (
-            target.isNPC
-          ) {
-
-            setTimeout(
-              function () {
-
-                if (
-                  room.finished ||
-                  deal.status !==
-                    "pending"
-                ) {
-                  return;
-                }
-
-                const accepts =
-                  npcDealAccepts(
-                    room,
-                    target,
-                    deal
-                  );
-
-                if (accepts) {
-
-                  acceptDeal(
-                    room,
-                    deal.id,
-                    target.id
-                  );
-
-                  addLog(
-                    room,
-                    "🤖 " +
-                      target.name +
-                      " accepted your deal."
-                  );
-
-                } else {
-
-                  declineDeal(
-                    room,
-                    deal.id,
-                    target.id
-                  );
-
-                  addLog(
-                    room,
-                    "🤖 " +
-                      target.name +
-                      " rejected your deal."
-                  );
-                }
-
-                emitRoom(room);
-
-              },
-              1200
-            );
-          }
+          socket.emit(
+            "errorMessage",
+            "You do not have enough cash."
+          );
 
           return;
         }
       }
-    );
 
+      /*
+        Validate money request.
+      */
+
+      if (
+        request.type === "money"
+      ) {
+
+        if (
+          !Number.isFinite(
+            request.amount
+          ) ||
+          request.amount <= 0
+        ) {
+
+          socket.emit(
+            "errorMessage",
+            "Enter a valid requested amount."
+          );
+
+          return;
+        }
+      }
+
+      /*
+        Create the actual deal.
+      */
+
+      const deal =
+        createDeal(
+          room,
+          proposer.id,
+          target.id,
+          offer,
+          request
+        );
+
+      if (!deal) {
+
+        socket.emit(
+          "errorMessage",
+          "Unable to create that deal."
+        );
+
+        return;
+      }
+
+      emitRoom(room);
+
+      /*
+        If the target is an NPC,
+        give the NPC time to think.
+      */
+
+      if (
+        target.isNPC
+      ) {
+
+        setTimeout(
+          function () {
+
+            if (
+              room.finished ||
+              deal.status !==
+                "pending"
+            ) {
+              return;
+            }
+
+            const accepts =
+              npcDealAccepts(
+                room,
+                target,
+                deal
+              );
+
+            if (
+              accepts
+            ) {
+
+              const result =
+                acceptDeal(
+                  room,
+                  deal.id,
+                  target.id
+                );
+
+              if (
+                result.success
+              ) {
+
+                addLog(
+                  room,
+                  "🤖 " +
+                    target.name +
+                    " accepted your deal."
+                );
+
+              }
+
+            } else {
+
+              declineDeal(
+                room,
+                deal.id,
+                target.id
+              );
+
+              addLog(
+                room,
+                "🤖 " +
+                  target.name +
+                  " rejected your deal."
+              );
+            }
+
+            emitRoom(room);
+
+          },
+          1200
+        );
+      }
+
+      return;
+    }
+  }
+);
     /* =====================================================
        ACCEPT DEAL
     ===================================================== */
