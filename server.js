@@ -11,7 +11,6 @@ const io = new Server(server);
 app.use(express.static(path.join(__dirname, "public")));
 
 const PORT = process.env.PORT || 10000;
-
 const rooms = new Map();
 
 /* =========================================================
@@ -45,37 +44,37 @@ const POWER_DEFINITIONS = {
 
   Reveal: {
     cost: 60,
-    description: "Reveal whether an unopened box is SAFE or ELIMINATED."
+    description: "Privately reveal whether an unopened box is SAFE or ELIMINATED."
   },
 
   "Second Chance": {
     cost: 60,
-    description: "Survive one elimination."
+    description: "Activate on yourself to survive one elimination."
   },
 
   Steal: {
     cost: 60,
-    description: "Steal $50 from another player."
+    description: "Steal up to $50 from another player."
   },
 
   Swap: {
     cost: 60,
-    description: "Swap your chosen box with another unopened box."
+    description: "Swap the hidden contents of two unopened boxes."
   },
 
   Prediction: {
     cost: 60,
-    description: "Predict whether a chosen box is SAFE or ELIMINATED."
+    description: "Predict whether an unopened box is SAFE or ELIMINATED."
   },
 
   Sabotage: {
     cost: 60,
-    description: "Cause another player to lose $50."
+    description: "Cause another player to lose up to $50."
   },
 
   "Royal Assignment": {
     cost: 60,
-    description: "Choose who must open the next box."
+    description: "Choose who must take the next turn."
   }
 };
 
@@ -113,8 +112,18 @@ const PERSONALITIES = [
 ];
 
 /* =========================================================
-   RANDOM BOARD
+   RANDOM HELPERS
 ========================================================= */
+
+function randomItem(array) {
+  if (!array || !array.length) {
+    return null;
+  }
+
+  return array[
+    crypto.randomInt(0, array.length)
+  ];
+}
 
 function shuffle(array) {
   const result = [...array];
@@ -130,6 +139,10 @@ function shuffle(array) {
   return result;
 }
 
+/* =========================================================
+   RANDOM BOARD
+========================================================= */
+
 function createBoxes() {
   const results = [];
 
@@ -143,29 +156,31 @@ function createBoxes() {
 
   const randomizedResults = shuffle(results);
 
-  return randomizedResults.map(function (result, index) {
-    return {
-      number: index + 1,
-      result: result,
-      opened: false
-    };
-  });
+  return randomizedResults.map(
+    function (result, index) {
+      return {
+        number: index + 1,
+        result: result,
+        opened: false
+      };
+    }
+  );
 }
 
 /* =========================================================
    PLAYERS
 ========================================================= */
 
-function randomItem(array) {
-  if (!array.length) return null;
-
-  return array[Math.floor(Math.random() * array.length)];
-}
-
-function createPlayer(id, name, isNPC, personality) {
+function createPlayer(
+  id,
+  name,
+  isNPC,
+  personality
+) {
   return {
     id: id,
     name: name,
+
     isNPC: isNPC || false,
     personality: personality || null,
 
@@ -181,16 +196,22 @@ function createPlayer(id, name, isNPC, personality) {
     objectiveComplete: false,
 
     boxesOpened: 0,
+
     predictions: [],
     correctPredictions: 0,
 
     relationships: {},
 
-    /* DEAL SYSTEM */
-
     dealsMade: 0,
     dealsHonored: 0,
-    dealsBroken: 0
+    dealsBroken: 0,
+
+    /*
+      Private information learned
+      legitimately through Reveal.
+    */
+
+    reveals: []
   };
 }
 
@@ -211,36 +232,53 @@ function generateRoomCode() {
   return code;
 }
 
-function createRoom(hostId, hostName) {
+function createRoom(
+  hostId,
+  hostName
+) {
   const code = generateRoomCode();
 
   const room = {
     code: code,
+
     hostId: hostId,
+
     mode: "online",
 
     started: false,
     finished: false,
 
-    goldenBox: Math.floor(Math.random() * 16) + 1,
+    goldenBox:
+      crypto.randomInt(1, 17),
 
     boxes: createBoxes(),
 
     currentTurn: null,
     turnIndex: 0,
 
+    /*
+      Royal Assignment stores
+      the player who should take
+      the next turn.
+    */
+
+    forcedNextPlayerId: null,
+
     log: [],
 
     players: [],
-
-    /* DEAL SYSTEM */
 
     deals: [],
     dealCounter: 0
   };
 
   room.players.push(
-    createPlayer(hostId, hostName, false, null)
+    createPlayer(
+      hostId,
+      hostName,
+      false,
+      null
+    )
   );
 
   rooms.set(code, room);
@@ -248,29 +286,36 @@ function createRoom(hostId, hostName) {
   return room;
 }
 
-function createSoloRoom(socketId, playerName, npcCount) {
+function createSoloRoom(
+  socketId,
+  playerName,
+  npcCount
+) {
   const code = generateRoomCode();
 
   const room = {
     code: code,
+
     hostId: socketId,
+
     mode: "solo",
 
     started: true,
     finished: false,
 
-    goldenBox: Math.floor(Math.random() * 16) + 1,
+    goldenBox:
+      crypto.randomInt(1, 17),
 
     boxes: createBoxes(),
 
-    currentTurn: 0,
+    currentTurn: socketId,
     turnIndex: 0,
+
+    forcedNextPlayerId: null,
 
     log: [],
 
     players: [],
-
-    /* DEAL SYSTEM */
 
     deals: [],
     dealCounter: 0
@@ -285,9 +330,16 @@ function createSoloRoom(socketId, playerName, npcCount) {
     )
   );
 
-  for (let i = 0; i < npcCount; i++) {
+  for (
+    let i = 0;
+    i < npcCount;
+    i++
+  ) {
     const personality =
-      PERSONALITIES[i % PERSONALITIES.length];
+      PERSONALITIES[
+        i %
+        PERSONALITIES.length
+      ];
 
     const npcId =
       "npc-" +
@@ -295,7 +347,7 @@ function createSoloRoom(socketId, playerName, npcCount) {
       "-" +
       Date.now() +
       "-" +
-      Math.random();
+      crypto.randomBytes(4).toString("hex");
 
     const npcName =
       personality.name +
@@ -312,8 +364,6 @@ function createSoloRoom(socketId, playerName, npcCount) {
     );
   }
 
-  room.currentTurn = socketId;
-
   rooms.set(code, room);
 
   addLog(
@@ -328,26 +378,40 @@ function createSoloRoom(socketId, playerName, npcCount) {
     "A completely new hidden board has been generated."
   );
 
+  addLog(
+    room,
+    "It is now " +
+      room.players[0].name +
+      "'s turn."
+  );
+
   return room;
 }
 
 /* =========================================================
-   STATE
+   BASIC STATE HELPERS
 ========================================================= */
 
 function alivePlayers(room) {
-  return room.players.filter(function (player) {
-    return player.alive;
-  });
+  return room.players.filter(
+    function (player) {
+      return player.alive;
+    }
+  );
 }
 
 function unopenedBoxes(room) {
-  return room.boxes.filter(function (box) {
-    return !box.opened;
-  });
+  return room.boxes.filter(
+    function (box) {
+      return !box.opened;
+    }
+  );
 }
 
-function addLog(room, message) {
+function addLog(
+  room,
+  message
+) {
   room.log.push(message);
 
   if (room.log.length > 100) {
@@ -355,65 +419,168 @@ function addLog(room, message) {
   }
 }
 
+function getPlayer(
+  room,
+  id
+) {
+  return room.players.find(
+    function (player) {
+      return player.id === id;
+    }
+  );
+}
+
 function getCurrentPlayer(room) {
-  return room.players.find(function (player) {
-    return player.id === room.currentTurn;
-  });
+  return getPlayer(
+    room,
+    room.currentTurn
+  );
+}
+
+function findRoomByPlayerId(
+  playerId
+) {
+  for (
+    const room
+    of rooms.values()
+  ) {
+    if (
+      getPlayer(
+        room,
+        playerId
+      )
+    ) {
+      return room;
+    }
+  }
+
+  return null;
+}
+
+function removePower(
+  player,
+  power
+) {
+  const index =
+    player.powers.indexOf(power);
+
+  if (index === -1) {
+    return false;
+  }
+
+  player.powers.splice(
+    index,
+    1
+  );
+
+  return true;
+}
+
+function ownsPower(
+  player,
+  power
+) {
+  return (
+    player.powers.indexOf(power) !== -1
+  );
 }
 
 /* =========================================================
    DEAL HELPERS
 ========================================================= */
 
-function getPlayer(room, id) {
-  return room.players.find(function (player) {
-    return player.id === id;
-  });
+function getDealById(
+  room,
+  dealId
+) {
+  return room.deals.find(
+    function (deal) {
+      return deal.id === dealId;
+    }
+  );
 }
 
-function getDealById(room, dealId) {
-  return room.deals.find(function (deal) {
-    return deal.id === dealId;
-  });
-}
-
-function getVisibleDeals(room, playerId) {
+function getVisibleDeals(
+  room,
+  playerId
+) {
   return room.deals
-    .filter(function (deal) {
-      return (
-        deal.proposerId === playerId ||
-        deal.recipientId === playerId
-      );
-    })
-    .map(function (deal) {
-      return {
-        id: deal.id,
+    .filter(
+      function (deal) {
+        return (
+          deal.proposerId === playerId ||
+          deal.recipientId === playerId
+        );
+      }
+    )
+    .map(
+      function (deal) {
+        const proposer =
+          getPlayer(
+            room,
+            deal.proposerId
+          );
 
-        proposerId: deal.proposerId,
-        proposerName: getPlayer(room, deal.proposerId)
-          ? getPlayer(room, deal.proposerId).name
-          : "Unknown",
+        const recipient =
+          getPlayer(
+            room,
+            deal.recipientId
+          );
 
-        recipientId: deal.recipientId,
-        recipientName: getPlayer(room, deal.recipientId)
-          ? getPlayer(room, deal.recipientId).name
-          : "Unknown",
+        return {
+          id: deal.id,
 
-        offer: deal.offer,
-        request: deal.request,
+          proposerId:
+            deal.proposerId,
 
-        status: deal.status,
+          proposerName:
+            proposer
+              ? proposer.name
+              : "Unknown",
 
-        createdAt: deal.createdAt
-      };
-    });
+          recipientId:
+            deal.recipientId,
+
+          recipientName:
+            recipient
+              ? recipient.name
+              : "Unknown",
+
+          offer: deal.offer,
+          request: deal.request,
+
+          status: deal.status,
+
+          createdAt:
+            deal.createdAt,
+
+          round:
+            deal.round
+        };
+      }
+    );
 }
 
-function getDealDescription(deal, room) {
-  const proposer = getPlayer(room, deal.proposerId);
-  const recipient = getPlayer(room, deal.recipientId);
+function getDealDescription(
+  deal,
+  room
+) {
+  const proposer =
+    getPlayer(
+      room,
+      deal.proposerId
+    );
 
-  if (!proposer || !recipient) {
+  const recipient =
+    getPlayer(
+      room,
+      deal.recipientId
+    );
+
+  if (
+    !proposer ||
+    !recipient
+  ) {
     return "Deal";
   }
 
@@ -421,10 +588,20 @@ function getDealDescription(deal, room) {
     proposer.name +
     " offers ";
 
-  if (deal.offer.type === "money") {
-    description += "$" + deal.offer.amount;
-  } else if (deal.offer.type === "protection") {
-    description += "Protection";
+  if (
+    deal.offer.type === "money"
+  ) {
+    description +=
+      "$" +
+      deal.offer.amount;
+  } else if (
+    deal.offer.type === "protection"
+  ) {
+    description +=
+      "Protection";
+  } else {
+    description +=
+      "nothing";
   }
 
   description +=
@@ -432,23 +609,44 @@ function getDealDescription(deal, room) {
     recipient.name +
     " in exchange for ";
 
-  if (deal.request.type === "money") {
-    description += "$" + deal.request.amount;
-  } else if (deal.request.type === "protection") {
-    description += "Protection";
+  if (
+    deal.request.type === "money"
+  ) {
+    description +=
+      "$" +
+      deal.request.amount;
+  } else if (
+    deal.request.type === "protection"
+  ) {
+    description +=
+      "Protection";
   } else {
-    description += "nothing";
+    description +=
+      "nothing";
   }
 
   return description;
 }
 
-function updateRelationship(room, fromId, toId, amount) {
-  const fromPlayer = getPlayer(room, fromId);
+function updateRelationship(
+  room,
+  fromId,
+  toId,
+  amount
+) {
+  const fromPlayer =
+    getPlayer(
+      room,
+      fromId
+    );
 
-  if (!fromPlayer) return;
+  if (!fromPlayer) {
+    return;
+  }
 
-  if (!fromPlayer.relationships[toId]) {
+  if (
+    !fromPlayer.relationships[toId]
+  ) {
     fromPlayer.relationships[toId] = {
       trust: 50,
       favors: 0,
@@ -456,14 +654,20 @@ function updateRelationship(room, fromId, toId, amount) {
     };
   }
 
-  fromPlayer.relationships[toId].trust += amount;
+  fromPlayer.relationships[
+    toId
+  ].trust += amount;
 
-  fromPlayer.relationships[toId].trust =
+  fromPlayer.relationships[
+    toId
+  ].trust =
     Math.max(
       0,
       Math.min(
         100,
-        fromPlayer.relationships[toId].trust
+        fromPlayer.relationships[
+          toId
+        ].trust
       )
     );
 }
@@ -479,34 +683,68 @@ function createDeal(
   offer,
   request
 ) {
-  const proposer = getPlayer(room, proposerId);
-  const recipient = getPlayer(room, recipientId);
+  const proposer =
+    getPlayer(
+      room,
+      proposerId
+    );
 
-  if (!proposer || !recipient) {
+  const recipient =
+    getPlayer(
+      room,
+      recipientId
+    );
+
+  if (
+    !proposer ||
+    !recipient
+  ) {
     return null;
   }
 
-  if (!proposer.alive || !recipient.alive) {
+  if (
+    !proposer.alive ||
+    !recipient.alive
+  ) {
     return null;
   }
 
-  if (proposerId === recipientId) {
+  if (
+    proposerId ===
+    recipientId
+  ) {
+    return null;
+  }
+
+  if (
+    !offer ||
+    !request
+  ) {
     return null;
   }
 
   if (
     offer.type === "money" &&
-    (!Number.isFinite(offer.amount) ||
+    (
+      !Number.isFinite(
+        offer.amount
+      ) ||
       offer.amount <= 0 ||
-      offer.amount > proposer.cash)
+      offer.amount >
+        proposer.cash
+    )
   ) {
     return null;
   }
 
   if (
     request.type === "money" &&
-    (!Number.isFinite(request.amount) ||
-      request.amount <= 0)
+    (
+      !Number.isFinite(
+        request.amount
+      ) ||
+      request.amount <= 0
+    )
   ) {
     return null;
   }
@@ -520,20 +758,30 @@ function createDeal(
       "-" +
       Date.now(),
 
-    proposerId: proposerId,
-    recipientId: recipientId,
+    proposerId:
+      proposerId,
 
-    offer: offer,
-    request: request,
+    recipientId:
+      recipientId,
 
-    status: "pending",
+    offer:
+      offer,
 
-    createdAt: Date.now(),
+    request:
+      request,
 
-    round: room.boxes
-      .filter(function (box) {
-        return box.opened;
-      }).length + 1
+    status:
+      "pending",
+
+    createdAt:
+      Date.now(),
+
+    round:
+      room.boxes.filter(
+        function (box) {
+          return box.opened;
+        }
+      ).length + 1
   };
 
   room.deals.push(deal);
@@ -556,8 +804,16 @@ function createDeal(
    ACCEPT DEAL
 ========================================================= */
 
-function acceptDeal(room, dealId, playerId) {
-  const deal = getDealById(room, dealId);
+function acceptDeal(
+  room,
+  dealId,
+  playerId
+) {
+  const deal =
+    getDealById(
+      room,
+      dealId
+    );
 
   if (!deal) {
     return {
@@ -566,45 +822,73 @@ function acceptDeal(room, dealId, playerId) {
     };
   }
 
-  if (deal.status !== "pending") {
+  if (
+    deal.status !== "pending"
+  ) {
     return {
       success: false,
-      message: "This deal is no longer available."
+      message:
+        "This deal is no longer available."
     };
   }
 
-  if (deal.recipientId !== playerId) {
+  if (
+    deal.recipientId !==
+    playerId
+  ) {
     return {
       success: false,
-      message: "You cannot accept this deal."
+      message:
+        "You cannot accept this deal."
     };
   }
 
-  const proposer = getPlayer(room, deal.proposerId);
-  const recipient = getPlayer(room, deal.recipientId);
+  const proposer =
+    getPlayer(
+      room,
+      deal.proposerId
+    );
 
-  if (!proposer || !recipient) {
+  const recipient =
+    getPlayer(
+      room,
+      deal.recipientId
+    );
+
+  if (
+    !proposer ||
+    !recipient
+  ) {
     return {
       success: false,
-      message: "Player no longer exists."
+      message:
+        "Player no longer exists."
     };
   }
 
-  if (!proposer.alive || !recipient.alive) {
+  if (
+    !proposer.alive ||
+    !recipient.alive
+  ) {
     return {
       success: false,
-      message: "Both players must be alive."
+      message:
+        "Both players must be alive."
     };
   }
 
-  /*
-    Money offered by the proposer
-    transfers immediately when accepted.
-  */
+  if (
+    deal.offer.type ===
+    "money"
+  ) {
+    if (
+      proposer.cash <
+      deal.offer.amount
+    ) {
+      deal.status =
+        "broken";
 
-  if (deal.offer.type === "money") {
-    if (proposer.cash < deal.offer.amount) {
-      deal.status = "broken";
+      proposer.dealsBroken += 1;
 
       addLog(
         room,
@@ -615,22 +899,28 @@ function acceptDeal(room, dealId, playerId) {
 
       return {
         success: false,
-        message: "The proposer can no longer afford the offer."
+        message:
+          "The proposer can no longer afford the offer."
       };
     }
 
-    proposer.cash -= deal.offer.amount;
-    recipient.cash += deal.offer.amount;
+    proposer.cash -=
+      deal.offer.amount;
+
+    recipient.cash +=
+      deal.offer.amount;
   }
 
-  /*
-    Money requested from the recipient
-    transfers immediately as well.
-  */
-
-  if (deal.request.type === "money") {
-    if (recipient.cash < deal.request.amount) {
-      deal.status = "declined";
+  if (
+    deal.request.type ===
+    "money"
+  ) {
+    if (
+      recipient.cash <
+      deal.request.amount
+    ) {
+      deal.status =
+        "declined";
 
       addLog(
         room,
@@ -641,26 +931,28 @@ function acceptDeal(room, dealId, playerId) {
 
       return {
         success: false,
-        message: "You cannot afford the requested payment."
+        message:
+          "You cannot afford the requested payment."
       };
     }
 
-    recipient.cash -= deal.request.amount;
-    proposer.cash += deal.request.amount;
+    recipient.cash -=
+      deal.request.amount;
+
+    proposer.cash +=
+      deal.request.amount;
   }
 
-  deal.status = "accepted";
-
-  /*
-    Protection is treated as a promise.
-    The actual Protection power must still
-    be used to fulfill it.
-  */
+  deal.status =
+    "accepted";
 
   addLog(
     room,
     "🤝 " +
-      getDealDescription(deal, room) +
+      getDealDescription(
+        deal,
+        room
+      ) +
       " — ACCEPTED."
   );
 
@@ -687,28 +979,47 @@ function acceptDeal(room, dealId, playerId) {
    DECLINE DEAL
 ========================================================= */
 
-function declineDeal(room, dealId, playerId) {
-  const deal = getDealById(room, dealId);
+function declineDeal(
+  room,
+  dealId,
+  playerId
+) {
+  const deal =
+    getDealById(
+      room,
+      dealId
+    );
 
   if (!deal) {
     return false;
   }
 
   if (
-    deal.status !== "pending" ||
-    deal.recipientId !== playerId
+    deal.status !==
+      "pending" ||
+    deal.recipientId !==
+      playerId
   ) {
     return false;
   }
 
-  deal.status = "declined";
+  deal.status =
+    "declined";
 
-  const recipient = getPlayer(room, playerId);
+  const recipient =
+    getPlayer(
+      room,
+      playerId
+    );
 
   addLog(
     room,
     "❌ " +
-      recipient.name +
+      (
+        recipient
+          ? recipient.name
+          : "Player"
+      ) +
       " declined a deal."
   );
 
@@ -719,9 +1030,16 @@ function declineDeal(room, dealId, playerId) {
    NPC DEAL DECISION
 ========================================================= */
 
-function npcDealAccepts(room, npc, deal) {
+function npcDealAccepts(
+  room,
+  npc,
+  deal
+) {
   const proposer =
-    getPlayer(room, deal.proposerId);
+    getPlayer(
+      room,
+      deal.proposerId
+    );
 
   if (!proposer) {
     return false;
@@ -729,26 +1047,25 @@ function npcDealAccepts(room, npc, deal) {
 
   let score = 0;
 
-  /*
-    Money offered increases attractiveness.
-  */
-
-  if (deal.offer.type === "money") {
-    score += Math.min(
-      50,
-      deal.offer.amount / 2
-    );
+  if (
+    deal.offer.type ===
+    "money"
+  ) {
+    score +=
+      Math.min(
+        50,
+        deal.offer.amount / 2
+      );
   }
 
-  /*
-    Protection is valuable when
-    the NPC is cautious.
-  */
-
-  if (deal.offer.type === "protection") {
+  if (
+    deal.offer.type ===
+    "protection"
+  ) {
     if (
       npc.personality &&
-      npc.personality.riskTolerance < 0.5
+      npc.personality
+        .riskTolerance < 0.5
     ) {
       score += 35;
     } else {
@@ -756,54 +1073,61 @@ function npcDealAccepts(room, npc, deal) {
     }
   }
 
-  /*
-    Requests reduce attractiveness.
-  */
-
-  if (deal.request.type === "money") {
-    score -= deal.request.amount / 2;
+  if (
+    deal.request.type ===
+    "money"
+  ) {
+    score -=
+      deal.request.amount / 2;
   }
 
-  if (deal.request.type === "protection") {
+  if (
+    deal.request.type ===
+    "protection"
+  ) {
     score -= 25;
   }
 
-  /*
-    Greedy NPCs value money more.
-  */
-
   if (
     npc.personality &&
-    npc.personality.greed > 0.7 &&
-    deal.offer.type === "money"
+    npc.personality.greed >
+      0.7 &&
+    deal.offer.type ===
+      "money"
   ) {
     score += 20;
   }
 
-  /*
-    Relationship trust.
-  */
-
-  if (npc.relationships[proposer.id]) {
+  if (
+    npc.relationships[
+      proposer.id
+    ]
+  ) {
     score +=
-      (npc.relationships[proposer.id].trust - 50) *
+      (
+        npc.relationships[
+          proposer.id
+        ].trust -
+        50
+      ) *
       0.5;
   }
 
-  /*
-    Personality randomness.
-  */
-
-  score += Math.random() * 30 - 15;
+  score +=
+    Math.random() * 30 -
+    15;
 
   return score >= 10;
 }
 
 /* =========================================================
-   NPC PROPOSAL
+   NPC PROPOSALS
 ========================================================= */
 
-function npcMakeDeal(room, npc) {
+function npcMakeDeal(
+  room,
+  npc
+) {
   if (
     room.finished ||
     !npc ||
@@ -813,33 +1137,37 @@ function npcMakeDeal(room, npc) {
   }
 
   const targets =
-    alivePlayers(room).filter(function (player) {
-      return player.id !== npc.id;
-    });
+    alivePlayers(room).filter(
+      function (player) {
+        return (
+          player.id !==
+          npc.id
+        );
+      }
+    );
 
   if (!targets.length) {
     return false;
   }
 
-  const target = randomItem(targets);
+  const target =
+    randomItem(targets);
 
   let offer;
   let request;
 
-  /*
-    Gambler:
-    more willing to make risky
-    money-for-money deals.
-  */
-
   if (
     npc.personality &&
-    npc.personality.style === "risky"
+    npc.personality.style ===
+      "risky"
   ) {
     const amount =
       Math.min(
         40,
-        Math.max(10, npc.cash)
+        Math.max(
+          10,
+          npc.cash
+        )
       );
 
     offer = {
@@ -849,39 +1177,41 @@ function npcMakeDeal(room, npc) {
 
     request = {
       type: "money",
-      amount: Math.max(
-        10,
-        amount + 20
-      )
+      amount:
+        Math.max(
+          10,
+          amount + 20
+        )
     };
-  }
-
-  /*
-    Analyst:
-    prefers practical protection deals.
-  */
-
-  else if (
+  } else if (
     npc.personality &&
-    npc.personality.style === "logical"
+    npc.personality.style ===
+      "logical"
   ) {
-    offer = {
-      type: "money",
-      amount: Math.min(30, npc.cash)
-    };
+    if (
+      npc.cash >= 10
+    ) {
+      offer = {
+        type: "money",
+        amount:
+          Math.min(
+            30,
+            npc.cash
+          )
+      };
+    } else {
+      offer = {
+        type: "protection"
+      };
+    }
 
     request = {
       type: "protection"
     };
-  }
-
-  /*
-    Opportunist:
-    tries to extract value.
-  */
-
-  else {
-    if (npc.cash >= 30) {
+  } else {
+    if (
+      npc.cash >= 30
+    ) {
       offer = {
         type: "money",
         amount: 20
@@ -903,14 +1233,10 @@ function npcMakeDeal(room, npc) {
           };
   }
 
-  /*
-    Don't propose impossible
-    money offers.
-  */
-
   if (
     offer.type === "money" &&
-    offer.amount > npc.cash
+    offer.amount >
+      npc.cash
   ) {
     return false;
   }
@@ -928,70 +1254,890 @@ function npcMakeDeal(room, npc) {
     return false;
   }
 
-  /*
-    NPC recipient may immediately
-    respond if they are another NPC.
-  */
+  if (
+    target.isNPC
+  ) {
+    setTimeout(
+      function () {
+        if (
+          room.finished ||
+          deal.status !==
+            "pending"
+        ) {
+          return;
+        }
 
-  if (target.isNPC) {
-    setTimeout(function () {
+        const accepts =
+          npcDealAccepts(
+            room,
+            target,
+            deal
+          );
 
-      if (
-        room.finished ||
-        deal.status !== "pending"
-      ) {
-        return;
-      }
+        if (accepts) {
+          acceptDeal(
+            room,
+            deal.id,
+            target.id
+          );
 
-      const accepts =
-        npcDealAccepts(
-          room,
-          target,
-          deal
-        );
+          addLog(
+            room,
+            "🤖 " +
+              target.name +
+              " accepted " +
+              npc.name +
+              "'s deal."
+          );
+        } else {
+          declineDeal(
+            room,
+            deal.id,
+            target.id
+          );
 
-      if (accepts) {
-        acceptDeal(
-          room,
-          deal.id,
-          target.id
-        );
+          addLog(
+            room,
+            "🤖 " +
+              target.name +
+              " rejected " +
+              npc.name +
+              "'s deal."
+          );
+        }
 
-        addLog(
-          room,
-          "🤖 " +
-            target.name +
-            " accepted " +
-            npc.name +
-            "'s deal."
-        );
-      } else {
-        declineDeal(
-          room,
-          deal.id,
-          target.id
-        );
-
-        addLog(
-          room,
-          "🤖 " +
-            target.name +
-            " rejected " +
-            npc.name +
-            "'s deal."
-        );
-      }
-
-      emitRoom(room);
-
-    }, 700);
+        emitRoom(room);
+      },
+      700
+    );
   }
 
   return true;
 }
 
 /* =========================================================
-   PUBLIC STATE
+   POWER HELPERS
+========================================================= */
+
+function validLivingTarget(
+  room,
+  user,
+  targetId,
+  allowSelf
+) {
+  const target =
+    getPlayer(
+      room,
+      targetId
+    );
+
+  if (
+    !target ||
+    !target.alive
+  ) {
+    return null;
+  }
+
+  if (
+    !allowSelf &&
+    target.id ===
+      user.id
+  ) {
+    return null;
+  }
+
+  return target;
+}
+
+function validUnopenedBox(
+  room,
+  boxNumber
+) {
+  const number =
+    Number(boxNumber);
+
+  if (
+    !Number.isInteger(number)
+  ) {
+    return null;
+  }
+
+  const box =
+    room.boxes.find(
+      function (item) {
+        return (
+          item.number ===
+          number
+        );
+      }
+    );
+
+  if (
+    !box ||
+    box.opened
+  ) {
+    return null;
+  }
+
+  return box;
+}
+
+/* =========================================================
+   PROTECTION DEAL FULFILLMENT
+========================================================= */
+
+function fulfillProtectionDeals(
+  room,
+  protectorId,
+  targetId
+) {
+  room.deals.forEach(
+    function (deal) {
+      if (
+        deal.status !==
+        "accepted"
+      ) {
+        return;
+      }
+
+      let fulfilled = false;
+
+      /*
+        Proposer promised protection
+        to recipient.
+      */
+
+      if (
+        deal.proposerId ===
+          protectorId &&
+        deal.recipientId ===
+          targetId &&
+        deal.offer &&
+        deal.offer.type ===
+          "protection"
+      ) {
+        fulfilled = true;
+      }
+
+      /*
+        Recipient promised protection
+        to proposer.
+      */
+
+      if (
+        deal.recipientId ===
+          protectorId &&
+        deal.proposerId ===
+          targetId &&
+        deal.request &&
+        deal.request.type ===
+          "protection"
+      ) {
+        fulfilled = true;
+      }
+
+      if (!fulfilled) {
+        return;
+      }
+
+      deal.status =
+        "honored";
+
+      const protector =
+        getPlayer(
+          room,
+          protectorId
+        );
+
+      if (protector) {
+        protector.dealsHonored +=
+          1;
+      }
+
+      updateRelationship(
+        room,
+        targetId,
+        protectorId,
+        15
+      );
+
+      addLog(
+        room,
+        "🤝 " +
+          (
+            protector
+              ? protector.name
+              : "A player"
+          ) +
+          " honored a Protection deal."
+      );
+    }
+  );
+}
+
+/* =========================================================
+   HUMAN POWER ENGINE
+========================================================= */
+
+function usePower(
+  room,
+  player,
+  power,
+  data
+) {
+  if (
+    !room.started ||
+    room.finished
+  ) {
+    return {
+      success: false,
+      message:
+        "Powers cannot be used right now."
+    };
+  }
+
+  if (
+    !player ||
+    !player.alive
+  ) {
+    return {
+      success: false,
+      message:
+        "Eliminated players cannot use powers."
+    };
+  }
+
+  if (
+    !POWER_DEFINITIONS[
+      power
+    ]
+  ) {
+    return {
+      success: false,
+      message:
+        "Unknown power."
+    };
+  }
+
+  if (
+    !ownsPower(
+      player,
+      power
+    )
+  ) {
+    return {
+      success: false,
+      message:
+        "You do not own that power."
+    };
+  }
+
+  /* -------------------------
+     PROTECTION
+  ------------------------- */
+
+  if (
+    power ===
+    "Protection"
+  ) {
+    const target =
+      validLivingTarget(
+        room,
+        player,
+        data.targetId,
+        false
+      );
+
+    if (!target) {
+      return {
+        success: false,
+        message:
+          "Choose another living player."
+      };
+    }
+
+    if (
+      target.protection
+    ) {
+      return {
+        success: false,
+        message:
+          "That player is already protected."
+      };
+    }
+
+    target.protection =
+      true;
+
+    removePower(
+      player,
+      power
+    );
+
+    addLog(
+      room,
+      "🛡️ " +
+        player.name +
+        " protected " +
+        target.name +
+        "."
+    );
+
+    fulfillProtectionDeals(
+      room,
+      player.id,
+      target.id
+    );
+
+    return {
+      success: true
+    };
+  }
+
+  /* -------------------------
+     REVEAL
+  ------------------------- */
+
+  if (
+    power ===
+    "Reveal"
+  ) {
+    const box =
+      validUnopenedBox(
+        room,
+        data.boxNumber
+      );
+
+    if (!box) {
+      return {
+        success: false,
+        message:
+          "Choose an unopened box."
+      };
+    }
+
+    removePower(
+      player,
+      power
+    );
+
+    player.reveals.push({
+      boxNumber:
+        box.number,
+
+      result:
+        box.result,
+
+      createdAt:
+        Date.now()
+    });
+
+    /*
+      The public log DOES NOT
+      contain the hidden result.
+    */
+
+    addLog(
+      room,
+      "👁️ " +
+        player.name +
+        " used Reveal on Box " +
+        box.number +
+        "."
+    );
+
+    return {
+      success: true,
+
+      privateMessage:
+        "👁 REVEAL — Box " +
+        box.number +
+        " is " +
+        box.result +
+        "."
+    };
+  }
+
+  /* -------------------------
+     SECOND CHANCE
+  ------------------------- */
+
+  if (
+    power ===
+    "Second Chance"
+  ) {
+    if (
+      player.secondChance
+    ) {
+      return {
+        success: false,
+        message:
+          "Second Chance is already active."
+      };
+    }
+
+    player.secondChance =
+      true;
+
+    removePower(
+      player,
+      power
+    );
+
+    addLog(
+      room,
+      "🔄 " +
+        player.name +
+        " activated Second Chance."
+    );
+
+    return {
+      success: true,
+
+      privateMessage:
+        "🔄 Second Chance is active. Your next elimination will be blocked."
+    };
+  }
+
+  /* -------------------------
+     STEAL
+  ------------------------- */
+
+  if (
+    power ===
+    "Steal"
+  ) {
+    const target =
+      validLivingTarget(
+        room,
+        player,
+        data.targetId,
+        false
+      );
+
+    if (!target) {
+      return {
+        success: false,
+        message:
+          "Choose another living player."
+      };
+    }
+
+    const amount =
+      Math.min(
+        50,
+        target.cash
+      );
+
+    target.cash -=
+      amount;
+
+    player.cash +=
+      amount;
+
+    removePower(
+      player,
+      power
+    );
+
+    addLog(
+      room,
+      "💰 " +
+        player.name +
+        " stole $" +
+        amount +
+        " from " +
+        target.name +
+        "."
+    );
+
+    return {
+      success: true
+    };
+  }
+
+  /* -------------------------
+     SABOTAGE
+  ------------------------- */
+
+  if (
+    power ===
+    "Sabotage"
+  ) {
+    const target =
+      validLivingTarget(
+        room,
+        player,
+        data.targetId,
+        false
+      );
+
+    if (!target) {
+      return {
+        success: false,
+        message:
+          "Choose another living player."
+      };
+    }
+
+    const amount =
+      Math.min(
+        50,
+        target.cash
+      );
+
+    target.cash -=
+      amount;
+
+    removePower(
+      player,
+      power
+    );
+
+    addLog(
+      room,
+      "💥 " +
+        player.name +
+        " sabotaged " +
+        target.name +
+        " for $" +
+        amount +
+        "."
+    );
+
+    return {
+      success: true
+    };
+  }
+
+  /* -------------------------
+     SWAP
+  ------------------------- */
+
+  if (
+    power ===
+    "Swap"
+  ) {
+    const firstBox =
+      validUnopenedBox(
+        room,
+        data.boxNumber
+      );
+
+    const secondBox =
+      validUnopenedBox(
+        room,
+        data.secondBoxNumber
+      );
+
+    if (
+      !firstBox ||
+      !secondBox
+    ) {
+      return {
+        success: false,
+        message:
+          "Choose two unopened boxes."
+      };
+    }
+
+    if (
+      firstBox.number ===
+      secondBox.number
+    ) {
+      return {
+        success: false,
+        message:
+          "Choose two different boxes."
+      };
+    }
+
+    /*
+      IMPORTANT:
+      We swap the actual hidden
+      outcomes.
+
+      This means information from
+      an earlier Reveal may become
+      outdated, which is intentional.
+    */
+
+    const temporaryResult =
+      firstBox.result;
+
+    firstBox.result =
+      secondBox.result;
+
+    secondBox.result =
+      temporaryResult;
+
+    removePower(
+      player,
+      power
+    );
+
+    addLog(
+      room,
+      "🔀 " +
+        player.name +
+        " swapped the hidden contents of Box " +
+        firstBox.number +
+        " and Box " +
+        secondBox.number +
+        "."
+    );
+
+    return {
+      success: true,
+
+      privateMessage:
+        "🔀 Box " +
+        firstBox.number +
+        " and Box " +
+        secondBox.number +
+        " have been swapped."
+    };
+  }
+
+  /* -------------------------
+     PREDICTION
+  ------------------------- */
+
+  if (
+    power ===
+    "Prediction"
+  ) {
+    const box =
+      validUnopenedBox(
+        room,
+        data.boxNumber
+      );
+
+    if (!box) {
+      return {
+        success: false,
+        message:
+          "Choose an unopened box."
+      };
+    }
+
+    const prediction =
+      String(
+        data.prediction || ""
+      ).toUpperCase();
+
+    if (
+      prediction !==
+        "SAFE" &&
+      prediction !==
+        "ELIMINATED"
+    ) {
+      return {
+        success: false,
+        message:
+          "Prediction must be SAFE or ELIMINATED."
+      };
+    }
+
+    const existingPrediction =
+      player.predictions.find(
+        function (item) {
+          return (
+            item.boxNumber ===
+              box.number &&
+            !item.resolved
+          );
+        }
+      );
+
+    if (
+      existingPrediction
+    ) {
+      return {
+        success: false,
+        message:
+          "You already predicted this box."
+      };
+    }
+
+    player.predictions.push({
+      boxNumber:
+        box.number,
+
+      prediction:
+        prediction,
+
+      resolved:
+        false,
+
+      correct:
+        null,
+
+      createdAt:
+        Date.now()
+    });
+
+    removePower(
+      player,
+      power
+    );
+
+    /*
+      The prediction itself remains
+      private.
+    */
+
+    addLog(
+      room,
+      "🔮 " +
+        player.name +
+        " made a prediction about Box " +
+        box.number +
+        "."
+    );
+
+    return {
+      success: true,
+
+      privateMessage:
+        "🔮 Prediction locked: Box " +
+        box.number +
+        " = " +
+        prediction +
+        "."
+    };
+  }
+
+  /* -------------------------
+     ROYAL ASSIGNMENT
+  ------------------------- */
+
+  if (
+    power ===
+    "Royal Assignment"
+  ) {
+    const target =
+      validLivingTarget(
+        room,
+        player,
+        data.targetId,
+        false
+      );
+
+    if (!target) {
+      return {
+        success: false,
+        message:
+          "Choose another living player."
+      };
+    }
+
+    /*
+      This does not interrupt the
+      current player's turn.
+
+      Instead, it overrides the
+      NEXT turn.
+    */
+
+    room.forcedNextPlayerId =
+      target.id;
+
+    removePower(
+      player,
+      power
+    );
+
+    addLog(
+      room,
+      "👑 " +
+        player.name +
+        " used Royal Assignment. " +
+        target.name +
+        " must take the next turn."
+    );
+
+    return {
+      success: true
+    };
+  }
+
+  return {
+    success: false,
+    message:
+      "Unable to use that power."
+  };
+}
+
+/* =========================================================
+   PREDICTION RESOLUTION
+========================================================= */
+
+function resolvePredictions(
+  room,
+  openedBox
+) {
+  room.players.forEach(
+    function (player) {
+      player.predictions.forEach(
+        function (prediction) {
+          if (
+            prediction.resolved ||
+            prediction.boxNumber !==
+              openedBox.number
+          ) {
+            return;
+          }
+
+          prediction.resolved =
+            true;
+
+          prediction.correct =
+            prediction.prediction ===
+            openedBox.result;
+
+          if (
+            prediction.correct
+          ) {
+            player.correctPredictions +=
+              1;
+          }
+
+          /*
+            Humans receive their
+            own private result.
+          */
+
+          if (
+            !player.isNPC
+          ) {
+            io.to(
+              player.id
+            ).emit(
+              "privateMessage",
+              prediction.correct
+                ? (
+                    "🔮 Correct! Your prediction for Box " +
+                    openedBox.number +
+                    " was right."
+                  )
+                : (
+                    "🔮 Incorrect. Your prediction for Box " +
+                    openedBox.number +
+                    " was " +
+                    prediction.prediction +
+                    "."
+                  )
+            );
+          }
+        }
+      );
+    }
+  );
+}
+
+/* =========================================================
+   PUBLIC / PRIVATE STATE
 ========================================================= */
 
 function getPublicState(room) {
@@ -1002,15 +2148,19 @@ function getPublicState(room) {
 
     started: room.started,
 
-    finished: room.finished,
+    finished:
+      room.finished,
 
-    goldenBox: room.finished
-      ? room.goldenBox
-      : null,
+    goldenBox:
+      room.finished
+        ? room.goldenBox
+        : null,
 
-    currentTurn: room.currentTurn,
+    currentTurn:
+      room.currentTurn,
 
-    turnIndex: room.turnIndex,
+    turnIndex:
+      room.turnIndex,
 
     boxesRemaining:
       unopenedBoxes(room).length,
@@ -1022,68 +2172,95 @@ function getPublicState(room) {
       alivePlayers(room).length,
 
     players:
-      room.players.map(function (player) {
-        return {
-          id: player.id,
-          name: player.name,
-          isNPC: player.isNPC,
+      room.players.map(
+        function (player) {
+          return {
+            id: player.id,
+            name: player.name,
 
-          personality:
-            player.isNPC &&
-            player.personality
-              ? player.personality.name
-              : null,
+            isNPC:
+              player.isNPC,
 
-          cash: player.cash,
-          alive: player.alive,
+            personality:
+              player.isNPC &&
+              player.personality
+                ? player.personality.name
+                : null,
 
-          powers: player.powers,
+            cash:
+              player.cash,
 
-          protection:
-            player.protection,
+            alive:
+              player.alive,
 
-          secondChance:
-            player.secondChance,
+            /*
+              Other players can see
+              power ownership for now,
+              preserving your existing
+              game behavior.
+            */
 
-          dealsMade:
-            player.dealsMade,
+            powers:
+              player.powers,
 
-          dealsHonored:
-            player.dealsHonored,
+            protection:
+              player.protection,
 
-          dealsBroken:
-            player.dealsBroken
-        };
-      }),
+            secondChance:
+              player.secondChance,
+
+            dealsMade:
+              player.dealsMade,
+
+            dealsHonored:
+              player.dealsHonored,
+
+            dealsBroken:
+              player.dealsBroken
+          };
+        }
+      ),
 
     boxes:
-      room.boxes.map(function (box) {
-        return {
-          number: box.number,
+      room.boxes.map(
+        function (box) {
+          return {
+            number:
+              box.number,
 
-          opened: box.opened,
+            opened:
+              box.opened,
 
-          result:
-            box.opened
-              ? box.result
-              : null,
+            result:
+              box.opened
+                ? box.result
+                : null,
 
-          isGolden:
-            room.finished
-              ? box.number === room.goldenBox
-              : false
-        };
-      }),
+            isGolden:
+              room.finished
+                ? (
+                    box.number ===
+                    room.goldenBox
+                  )
+                : false
+          };
+        }
+      ),
 
-    log: room.log
+    log:
+      room.log
   };
 }
 
-function getPrivateState(room, playerId) {
+function getPrivateState(
+  room,
+  playerId
+) {
   const player =
-    room.players.find(function (p) {
-      return p.id === playerId;
-    });
+    getPlayer(
+      room,
+      playerId
+    );
 
   if (!player) {
     return null;
@@ -1093,17 +2270,23 @@ function getPrivateState(room, playerId) {
     ...getPublicState(room),
 
     you: {
-      id: player.id,
+      id:
+        player.id,
 
-      name: player.name,
+      name:
+        player.name,
 
-      cash: player.cash,
+      cash:
+        player.cash,
 
-      alive: player.alive,
+      alive:
+        player.alive,
 
-      powers: player.powers,
+      powers:
+        player.powers,
 
-      protection: player.protection,
+      protection:
+        player.protection,
 
       secondChance:
         player.secondChance,
@@ -1127,7 +2310,17 @@ function getPrivateState(room, playerId) {
         player.dealsHonored,
 
       dealsBroken:
-        player.dealsBroken
+        player.dealsBroken,
+
+      /*
+        Reveal knowledge is PRIVATE.
+      */
+
+      reveals:
+        player.reveals,
+
+      predictions:
+        player.predictions
     },
 
     deals:
@@ -1139,18 +2332,23 @@ function getPrivateState(room, playerId) {
 }
 
 function emitRoom(room) {
-  room.players.forEach(function (player) {
-
-    if (!player.isNPC) {
-      io.to(player.id).emit(
-        "state",
-        getPrivateState(
-          room,
+  room.players.forEach(
+    function (player) {
+      if (
+        !player.isNPC
+      ) {
+        io.to(
           player.id
-        )
-      );
+        ).emit(
+          "state",
+          getPrivateState(
+            room,
+            player.id
+          )
+        );
+      }
     }
-  });
+  );
 }
 
 /* =========================================================
@@ -1158,6 +2356,50 @@ function emitRoom(room) {
 ========================================================= */
 
 function getNextAlivePlayer(room) {
+  /*
+    Royal Assignment gets priority.
+  */
+
+  if (
+    room.forcedNextPlayerId
+  ) {
+    const forcedPlayer =
+      getPlayer(
+        room,
+        room.forcedNextPlayerId
+      );
+
+    room.forcedNextPlayerId =
+      null;
+
+    if (
+      forcedPlayer &&
+      forcedPlayer.alive
+    ) {
+      const index =
+        room.players.findIndex(
+          function (player) {
+            return (
+              player.id ===
+              forcedPlayer.id
+            );
+          }
+        );
+
+      if (
+        index !== -1
+      ) {
+        room.turnIndex =
+          index;
+      }
+
+      room.currentTurn =
+        forcedPlayer.id;
+
+      return forcedPlayer;
+    }
+  }
+
   const startIndex =
     room.turnIndex;
 
@@ -1167,7 +2409,10 @@ function getNextAlivePlayer(room) {
     i++
   ) {
     const index =
-      (startIndex + i) %
+      (
+        startIndex +
+        i
+      ) %
       room.players.length;
 
     const player =
@@ -1191,7 +2436,9 @@ function getNextAlivePlayer(room) {
 }
 
 function advanceTurn(room) {
-  if (room.finished) {
+  if (
+    room.finished
+  ) {
     return null;
   }
 
@@ -1208,11 +2455,6 @@ function advanceTurn(room) {
       nextPlayer.name +
       "'s turn."
   );
-
-  /*
-    NPCs sometimes make a deal
-    before choosing their box.
-  */
 
   if (
     room.mode === "solo" &&
@@ -1231,9 +2473,12 @@ function advanceTurn(room) {
     room.mode === "solo" &&
     nextPlayer.isNPC
   ) {
-    setTimeout(function () {
-      runNpcTurn(room);
-    }, 1200);
+    setTimeout(
+      function () {
+        runNpcTurn(room);
+      },
+      1200
+    );
   }
 
   return nextPlayer;
@@ -1244,41 +2489,54 @@ function advanceTurn(room) {
 ========================================================= */
 
 function finishGame(room) {
-  if (room.finished) {
+  if (
+    room.finished
+  ) {
     return;
   }
 
-  room.finished = true;
+  room.finished =
+    true;
 
-  /*
-    Pending deals expire when the
-    game ends.
-  */
+  room.forcedNextPlayerId =
+    null;
 
-  room.deals.forEach(function (deal) {
-    if (deal.status === "pending") {
-      deal.status = "expired";
+  room.deals.forEach(
+    function (deal) {
+      if (
+        deal.status ===
+        "pending"
+      ) {
+        deal.status =
+          "expired";
+      }
     }
-  });
+  );
 
   const survivors =
     alivePlayers(room);
 
-  if (survivors.length === 1) {
+  if (
+    survivors.length === 1
+  ) {
     addLog(
       room,
       "🏆 " +
         survivors[0].name +
         " is the final survivor!"
     );
-  } else if (survivors.length > 1) {
+  } else if (
+    survivors.length > 1
+  ) {
     addLog(
       room,
       "🏆 Game finished. Survivors: " +
         survivors
-          .map(function (player) {
-            return player.name;
-          })
+          .map(
+            function (player) {
+              return player.name;
+            }
+          )
           .join(", ")
     );
   } else {
@@ -1293,16 +2551,20 @@ function finishGame(room) {
 
 function checkGameEnd(room) {
   if (
-    alivePlayers(room).length <= 1
+    alivePlayers(room).length <=
+    1
   ) {
     finishGame(room);
+
     return true;
   }
 
   if (
-    unopenedBoxes(room).length === 0
+    unopenedBoxes(room).length ===
+    0
   ) {
     finishGame(room);
+
     return true;
   }
 
@@ -1310,37 +2572,62 @@ function checkGameEnd(room) {
 }
 
 /* =========================================================
-   NPC
+   NPC TARGETING
 ========================================================= */
 
-function chooseNpcTarget(room, npc) {
+function chooseNpcTarget(
+  room,
+  npc
+) {
   const candidates =
     alivePlayers(room).filter(
       function (player) {
-        return player.id !== npc.id;
+        return (
+          player.id !==
+          npc.id
+        );
       }
     );
 
-  if (!candidates.length) {
+  if (
+    !candidates.length
+  ) {
     return null;
   }
 
   if (
     npc.personality &&
-    npc.personality.style === "logical"
+    npc.personality.style ===
+      "logical"
   ) {
     return candidates
       .slice()
-      .sort(function (a, b) {
-        return b.cash - a.cash;
-      })[0];
+      .sort(
+        function (a, b) {
+          return (
+            b.cash -
+            a.cash
+          );
+        }
+      )[0];
   }
 
-  return randomItem(candidates);
+  return randomItem(
+    candidates
+  );
 }
 
-function npcBuyPower(room, npc) {
-  if (npc.cash < 60) {
+/* =========================================================
+   NPC BUY POWER
+========================================================= */
+
+function npcBuyPower(
+  room,
+  npc
+) {
+  if (
+    npc.cash < 60
+  ) {
     return false;
   }
 
@@ -1348,7 +2635,8 @@ function npcBuyPower(room, npc) {
 
   if (
     npc.personality &&
-    npc.personality.style === "risky"
+    npc.personality.style ===
+      "risky"
   ) {
     power =
       Math.random() < 0.5
@@ -1356,7 +2644,8 @@ function npcBuyPower(room, npc) {
         : "Protection";
   } else if (
     npc.personality &&
-    npc.personality.style === "logical"
+    npc.personality.style ===
+      "logical"
   ) {
     power =
       Math.random() < 0.5
@@ -1370,9 +2659,13 @@ function npcBuyPower(room, npc) {
   }
 
   npc.cash -=
-    POWER_DEFINITIONS[power].cost;
+    POWER_DEFINITIONS[
+      power
+    ].cost;
 
-  npc.powers.push(power);
+  npc.powers.push(
+    power
+  );
 
   addLog(
     room,
@@ -1385,71 +2678,107 @@ function npcBuyPower(room, npc) {
   return true;
 }
 
-function npcUsePower(room, npc) {
-  if (!npc.powers.length) {
+/* =========================================================
+   NPC USE POWER
+========================================================= */
+
+function npcUsePower(
+  room,
+  npc
+) {
+  if (
+    !npc.powers.length
+  ) {
     return false;
   }
 
   const power =
-    randomItem(npc.powers);
+    randomItem(
+      npc.powers
+    );
 
-  const target =
-    chooseNpcTarget(room, npc);
-
-  if (
-    !target &&
-    (
-      power === "Protection" ||
-      power === "Steal" ||
-      power === "Sabotage"
-    )
-  ) {
-    return false;
-  }
+  /* PROTECTION */
 
   if (
-    power === "Protection" &&
-    target
+    power ===
+    "Protection"
   ) {
-    target.protection = true;
+    const target =
+      chooseNpcTarget(
+        room,
+        npc
+      );
 
-    npc.powers.splice(
-      npc.powers.indexOf(power),
-      1
+    if (
+      !target ||
+      target.protection
+    ) {
+      return false;
+    }
+
+    target.protection =
+      true;
+
+    removePower(
+      npc,
+      power
     );
 
     addLog(
       room,
-      npc.name +
+      "🛡️ " +
+        npc.name +
         " protected " +
         target.name +
         "."
     );
 
+    fulfillProtectionDeals(
+      room,
+      npc.id,
+      target.id
+    );
+
     return true;
   }
 
+  /* STEAL */
+
   if (
-    power === "Steal" &&
-    target
+    power ===
+    "Steal"
   ) {
+    const target =
+      chooseNpcTarget(
+        room,
+        npc
+      );
+
+    if (!target) {
+      return false;
+    }
+
     const amount =
       Math.min(
         50,
         target.cash
       );
 
-    target.cash -= amount;
-    npc.cash += amount;
+    target.cash -=
+      amount;
 
-    npc.powers.splice(
-      npc.powers.indexOf(power),
-      1
+    npc.cash +=
+      amount;
+
+    removePower(
+      npc,
+      power
     );
 
     addLog(
       room,
-      npc.name +
+      "💰 " +
+        npc.name +
         " stole $" +
         amount +
         " from " +
@@ -1460,29 +2789,43 @@ function npcUsePower(room, npc) {
     return true;
   }
 
+  /* SABOTAGE */
+
   if (
-    power === "Sabotage" &&
-    target
+    power ===
+    "Sabotage"
   ) {
+    const target =
+      chooseNpcTarget(
+        room,
+        npc
+      );
+
+    if (!target) {
+      return false;
+    }
+
     const amount =
       Math.min(
         50,
         target.cash
       );
 
-    target.cash -= amount;
+    target.cash -=
+      amount;
 
-    npc.powers.splice(
-      npc.powers.indexOf(power),
-      1
+    removePower(
+      npc,
+      power
     );
 
     addLog(
       room,
-      npc.name +
+      "💥 " +
+        npc.name +
         " sabotaged " +
         target.name +
-        ", costing $" +
+        " for $" +
         amount +
         "."
     );
@@ -1490,32 +2833,41 @@ function npcUsePower(room, npc) {
     return true;
   }
 
-  if (
-    power === "Reveal"
-  ) {
-    const boxes =
-      unopenedBoxes(room);
+  /* REVEAL */
 
-    if (!boxes.length) {
+  if (
+    power ===
+    "Reveal"
+  ) {
+    const box =
+      randomItem(
+        unopenedBoxes(room)
+      );
+
+    if (!box) {
       return false;
     }
 
-    const box =
-      randomItem(boxes);
+    npc.reveals.push({
+      boxNumber:
+        box.number,
 
-    npc.lastReveal = {
-      boxNumber: box.number,
-      result: box.result
-    };
+      result:
+        box.result,
 
-    npc.powers.splice(
-      npc.powers.indexOf(power),
-      1
+      createdAt:
+        Date.now()
+    });
+
+    removePower(
+      npc,
+      power
     );
 
     addLog(
       room,
-      npc.name +
+      "👁️ " +
+        npc.name +
         " used Reveal on Box " +
         box.number +
         "."
@@ -1524,20 +2876,189 @@ function npcUsePower(room, npc) {
     return true;
   }
 
-  if (
-    power === "Second Chance"
-  ) {
-    npc.secondChance = true;
+  /* SECOND CHANCE */
 
-    npc.powers.splice(
-      npc.powers.indexOf(power),
-      1
+  if (
+    power ===
+    "Second Chance"
+  ) {
+    if (
+      npc.secondChance
+    ) {
+      return false;
+    }
+
+    npc.secondChance =
+      true;
+
+    removePower(
+      npc,
+      power
     );
 
     addLog(
       room,
-      npc.name +
+      "🔄 " +
+        npc.name +
         " activated Second Chance."
+    );
+
+    return true;
+  }
+
+  /* SWAP */
+
+  if (
+    power ===
+    "Swap"
+  ) {
+    const boxes =
+      unopenedBoxes(room);
+
+    if (
+      boxes.length < 2
+    ) {
+      return false;
+    }
+
+    const first =
+      randomItem(boxes);
+
+    const remaining =
+      boxes.filter(
+        function (box) {
+          return (
+            box.number !==
+            first.number
+          );
+        }
+      );
+
+    const second =
+      randomItem(
+        remaining
+      );
+
+    const temp =
+      first.result;
+
+    first.result =
+      second.result;
+
+    second.result =
+      temp;
+
+    removePower(
+      npc,
+      power
+    );
+
+    addLog(
+      room,
+      "🔀 " +
+        npc.name +
+        " swapped Box " +
+        first.number +
+        " and Box " +
+        second.number +
+        "."
+    );
+
+    return true;
+  }
+
+  /* PREDICTION */
+
+  if (
+    power ===
+    "Prediction"
+  ) {
+    const box =
+      randomItem(
+        unopenedBoxes(room)
+      );
+
+    if (!box) {
+      return false;
+    }
+
+    /*
+      IMPORTANT:
+      NPC does NOT look at box.result
+      when making its prediction.
+    */
+
+    const prediction =
+      Math.random() <
+        11 / 16
+        ? "SAFE"
+        : "ELIMINATED";
+
+    npc.predictions.push({
+      boxNumber:
+        box.number,
+
+      prediction:
+        prediction,
+
+      resolved:
+        false,
+
+      correct:
+        null,
+
+      createdAt:
+        Date.now()
+    });
+
+    removePower(
+      npc,
+      power
+    );
+
+    addLog(
+      room,
+      "🔮 " +
+        npc.name +
+        " made a prediction about Box " +
+        box.number +
+        "."
+    );
+
+    return true;
+  }
+
+  /* ROYAL ASSIGNMENT */
+
+  if (
+    power ===
+    "Royal Assignment"
+  ) {
+    const target =
+      chooseNpcTarget(
+        room,
+        npc
+      );
+
+    if (!target) {
+      return false;
+    }
+
+    room.forcedNextPlayerId =
+      target.id;
+
+    removePower(
+      npc,
+      power
+    );
+
+    addLog(
+      room,
+      "👑 " +
+        npc.name +
+        " assigned " +
+        target.name +
+        " to take the next turn."
     );
 
     return true;
@@ -1546,7 +3067,14 @@ function npcUsePower(room, npc) {
   return false;
 }
 
-function npcChooseBox(room, npc) {
+/* =========================================================
+   NPC CHOOSE BOX
+========================================================= */
+
+function npcChooseBox(
+  room,
+  npc
+) {
   const boxes =
     unopenedBoxes(room);
 
@@ -1554,31 +3082,74 @@ function npcChooseBox(room, npc) {
     return null;
   }
 
-  if (
-    npc.personality &&
-    npc.personality.style === "risky"
-  ) {
-    return randomItem(boxes);
-  }
+  /*
+    If the NPC legitimately learned
+    that a currently unopened box
+    was SAFE through Reveal, it may
+    use that knowledge.
+
+    It does NOT inspect hidden
+    outcomes directly.
+  */
+
+  const knownSafe =
+    npc.reveals.filter(
+      function (reveal) {
+        return (
+          reveal.result ===
+            "SAFE" &&
+          boxes.some(
+            function (box) {
+              return (
+                box.number ===
+                reveal.boxNumber
+              );
+            }
+          )
+        );
+      }
+    );
 
   if (
+    knownSafe.length &&
     npc.personality &&
-    npc.personality.style === "logical"
+    npc.personality.style ===
+      "logical"
   ) {
-    return boxes[
-      Math.floor(
-        boxes.length / 2
-      )
-    ];
+    const knowledge =
+      randomItem(
+        knownSafe
+      );
+
+    return boxes.find(
+      function (box) {
+        return (
+          box.number ===
+          knowledge.boxNumber
+        );
+      }
+    );
   }
 
-  return randomItem(boxes);
+  /*
+    Otherwise the NPC chooses
+    without seeing hidden outcomes.
+  */
+
+  return randomItem(
+    boxes
+  );
 }
+
+/* =========================================================
+   NPC TURN
+========================================================= */
 
 function runNpcTurn(room) {
   if (
     room.finished ||
-    room.mode !== "solo"
+    room.mode !==
+      "solo"
   ) {
     return;
   }
@@ -1603,63 +3174,61 @@ function runNpcTurn(room) {
 
   emitRoom(room);
 
-  setTimeout(function () {
+  setTimeout(
+    function () {
+      if (
+        room.finished ||
+        !npc.alive ||
+        room.currentTurn !==
+          npc.id
+      ) {
+        return;
+      }
 
-    if (
-      room.finished ||
-      !npc.alive
-    ) {
-      return;
-    }
+      if (
+        Math.random() < 0.35
+      ) {
+        npcMakeDeal(
+          room,
+          npc
+        );
+      }
 
-    /*
-      NPC may make a deal before
-      using powers/opening a box.
-    */
+      if (
+        Math.random() < 0.35
+      ) {
+        npcBuyPower(
+          room,
+          npc
+        );
+      }
 
-    if (
-      Math.random() < 0.35
-    ) {
-      npcMakeDeal(
-        room,
-        npc
-      );
-    }
+      if (
+        Math.random() < 0.45
+      ) {
+        npcUsePower(
+          room,
+          npc
+        );
+      }
 
-    if (
-      Math.random() < 0.35
-    ) {
-      npcBuyPower(
-        room,
-        npc
-      );
-    }
+      const box =
+        npcChooseBox(
+          room,
+          npc
+        );
 
-    if (
-      Math.random() < 0.35
-    ) {
-      npcUsePower(
-        room,
-        npc
-      );
-    }
-
-    const box =
-      npcChooseBox(
-        room,
-        npc
-      );
-
-    if (box) {
-      openBox(
-        room,
-        npc.id,
-        box.number,
-        true
-      );
-    }
-
-  }, 900);
+      if (box) {
+        openBox(
+          room,
+          npc.id,
+          box.number,
+          true
+        );
+      }
+    },
+    900
+  );
 }
 
 /* =========================================================
@@ -1672,15 +3241,16 @@ function openBox(
   boxNumber,
   isNpc
 ) {
-  if (room.finished) {
+  if (
+    room.finished
+  ) {
     return;
   }
 
   const player =
-    room.players.find(
-      function (p) {
-        return p.id === playerId;
-      }
+    getPlayer(
+      room,
+      playerId
     );
 
   if (
@@ -1695,13 +3265,15 @@ function openBox(
     player.id
   ) {
     if (!isNpc) {
-      const socket =
+      const playerSocket =
         io.sockets.sockets.get(
           player.id
         );
 
-      if (socket) {
-        socket.emit(
+      if (
+        playerSocket
+      ) {
+        playerSocket.emit(
           "errorMessage",
           "It is not your turn."
         );
@@ -1712,30 +3284,51 @@ function openBox(
   }
 
   const box =
-    room.boxes.find(
-      function (b) {
-        return (
-          b.number ===
-          Number(boxNumber)
-        );
-      }
+    validUnopenedBox(
+      room,
+      boxNumber
     );
 
-  if (
-    !box ||
-    box.opened
-  ) {
+  if (!box) {
+    if (!isNpc) {
+      const playerSocket =
+        io.sockets.sockets.get(
+          player.id
+        );
+
+      if (
+        playerSocket
+      ) {
+        playerSocket.emit(
+          "errorMessage",
+          "Choose an unopened box."
+        );
+      }
+    }
+
     return;
   }
 
-  box.opened = true;
+  box.opened =
+    true;
 
-  player.boxesOpened += 1;
+  player.boxesOpened +=
+    1;
+
+  /*
+    Resolve all predictions made
+    about this box.
+  */
+
+  resolvePredictions(
+    room,
+    box
+  );
 
   if (
-    box.result === "SAFE"
+    box.result ===
+    "SAFE"
   ) {
-
     addLog(
       room,
       player.name +
@@ -1743,14 +3336,12 @@ function openBox(
         box.number +
         ": SAFE."
     );
-
   } else {
-
     if (
       player.protection
     ) {
-
-      player.protection = false;
+      player.protection =
+        false;
 
       addLog(
         room,
@@ -1759,12 +3350,11 @@ function openBox(
           box.number +
           ": ELIMINATED — Protection saved them."
       );
-
     } else if (
       player.secondChance
     ) {
-
-      player.secondChance = false;
+      player.secondChance =
+        false;
 
       addLog(
         room,
@@ -1773,10 +3363,9 @@ function openBox(
           box.number +
           ": ELIMINATED — Second Chance saved them."
       );
-
     } else {
-
-      player.alive = false;
+      player.alive =
+        false;
 
       addLog(
         room,
@@ -1798,6 +3387,61 @@ function openBox(
 }
 
 /* =========================================================
+   RESET PLAYER FOR NEW GAME
+========================================================= */
+
+function resetPlayer(
+  player
+) {
+  player.cash =
+    100;
+
+  player.alive =
+    true;
+
+  player.powers =
+    [];
+
+  player.protection =
+    false;
+
+  player.secondChance =
+    false;
+
+  player.objective =
+    randomItem(
+      OBJECTIVES
+    );
+
+  player.objectiveComplete =
+    false;
+
+  player.boxesOpened =
+    0;
+
+  player.predictions =
+    [];
+
+  player.correctPredictions =
+    0;
+
+  player.reveals =
+    [];
+
+  player.dealsMade =
+    0;
+
+  player.dealsHonored =
+    0;
+
+  player.dealsBroken =
+    0;
+
+  player.relationships =
+    {};
+}
+
+/* =========================================================
    SOCKET CONNECTION
 ========================================================= */
 
@@ -1805,12 +3449,13 @@ io.on(
   "connection",
   function (socket) {
 
-    /* CREATE ONLINE ROOM */
+    /* =====================================================
+       CREATE ONLINE ROOM
+    ===================================================== */
 
     socket.on(
       "createRoom",
       function (data) {
-
         const name =
           data &&
           data.name;
@@ -1836,12 +3481,13 @@ io.on(
       }
     );
 
-    /* JOIN ROOM */
+    /* =====================================================
+       JOIN ROOM
+    ===================================================== */
 
     socket.on(
       "joinRoom",
       function (data) {
-
         const name =
           data &&
           data.name;
@@ -1860,7 +3506,8 @@ io.on(
 
         const room =
           rooms.get(
-            code.toUpperCase()
+            code
+              .toUpperCase()
           );
 
         if (!room) {
@@ -1872,7 +3519,9 @@ io.on(
           return;
         }
 
-        if (room.started) {
+        if (
+          room.started
+        ) {
           socket.emit(
             "errorMessage",
             "Game already started."
@@ -1916,17 +3565,17 @@ io.on(
       }
     );
 
-    /* START ONLINE GAME */
+    /* =====================================================
+       START ONLINE GAME
+    ===================================================== */
 
     socket.on(
       "startGame",
       function () {
-
         for (
           const room
           of rooms.values()
         ) {
-
           if (
             room.hostId !==
             socket.id
@@ -1950,23 +3599,42 @@ io.on(
             createBoxes();
 
           room.goldenBox =
-            Math.floor(
-              Math.random() *
-              16
-            ) + 1;
+            crypto.randomInt(
+              1,
+              17
+            );
 
-          room.started = true;
+          room.started =
+            true;
 
           room.finished =
             false;
 
-          room.turnIndex = 0;
+          room.turnIndex =
+            0;
 
           room.currentTurn =
             room.players[0].id;
 
-          room.deals = [];
-          room.dealCounter = 0;
+          room.forcedNextPlayerId =
+            null;
+
+          room.deals =
+            [];
+
+          room.dealCounter =
+            0;
+
+          room.log =
+            [];
+
+          room.players.forEach(
+            function (player) {
+              resetPlayer(
+                player
+              );
+            }
+          );
 
           addLog(
             room,
@@ -1992,12 +3660,13 @@ io.on(
       }
     );
 
-    /* CREATE SOLO */
+    /* =====================================================
+       CREATE SOLO
+    ===================================================== */
 
     socket.on(
       "createSolo",
       function (data) {
-
         const name =
           data &&
           data.name;
@@ -2016,7 +3685,9 @@ io.on(
         }
 
         if (
-          !Number.isFinite(count)
+          !Number.isFinite(
+            count
+          )
         ) {
           count = 3;
         }
@@ -2026,7 +3697,9 @@ io.on(
             3,
             Math.min(
               15,
-              Math.floor(count)
+              Math.floor(
+                count
+              )
             )
           );
 
@@ -2042,534 +3715,532 @@ io.on(
         );
 
         emitRoom(room);
-
-        setTimeout(
-          function () {
-
-            const current =
-              getCurrentPlayer(
-                room
-              );
-
-            if (
-              current &&
-              current.isNPC
-            ) {
-              runNpcTurn(room);
-            }
-
-          },
-          1200
-        );
       }
     );
 
-    /* OPEN BOX */
+    /* =====================================================
+       OPEN BOX
+    ===================================================== */
 
     socket.on(
       "openBox",
       function (data) {
-
-        const boxNumber =
-          data &&
-          data.boxNumber;
-
-        for (
-          const room
-          of rooms.values()
-        ) {
-
-          const player =
-            room.players.find(
-              function (p) {
-                return (
-                  p.id ===
-                  socket.id
-                );
-              }
-            );
-
-          if (!player) {
-            continue;
-          }
-
-          openBox(
-            room,
-            socket.id,
-            boxNumber,
-            false
+        const room =
+          findRoomByPlayerId(
+            socket.id
           );
 
+        if (!room) {
           return;
         }
+
+        openBox(
+          room,
+          socket.id,
+          data &&
+            data.boxNumber,
+          false
+        );
       }
     );
 
-    /* BUY POWER */
+    /* =====================================================
+       BUY POWER
+    ===================================================== */
 
     socket.on(
       "buyPower",
       function (data) {
+        const room =
+          findRoomByPlayerId(
+            socket.id
+          );
+
+        if (!room) {
+          return;
+        }
+
+        const player =
+          getPlayer(
+            room,
+            socket.id
+          );
+
+        if (
+          !player ||
+          !room.started ||
+          room.finished
+        ) {
+          return;
+        }
+
+        if (
+          !player.alive
+        ) {
+          socket.emit(
+            "errorMessage",
+            "Eliminated players cannot buy powers."
+          );
+
+          return;
+        }
 
         const power =
           data &&
           data.power;
 
-        for (
-          const room
-          of rooms.values()
-        ) {
-
-          const player =
-            room.players.find(
-              function (p) {
-                return (
-                  p.id ===
-                  socket.id
-                );
-              }
-            );
-
-          if (
-            !player ||
-            !room.started ||
-            room.finished
-          ) {
-            continue;
-          }
-
-          const definition =
-            POWER_DEFINITIONS[
-              power
-            ];
-
-          if (!definition) {
-            return;
-          }
-
-          if (
-            player.cash <
-            definition.cost
-          ) {
-
-            socket.emit(
-              "errorMessage",
-              "Not enough cash."
-            );
-
-            return;
-          }
-
-          player.cash -=
-            definition.cost;
-
-          player.powers.push(
+        const definition =
+          POWER_DEFINITIONS[
             power
-          );
+          ];
 
-          addLog(
-            room,
-            player.name +
-              " bought " +
-              power +
-              "."
+        if (
+          !definition
+        ) {
+          socket.emit(
+            "errorMessage",
+            "Unknown power."
           );
-
-          emitRoom(room);
 
           return;
         }
+
+        if (
+          player.cash <
+          definition.cost
+        ) {
+          socket.emit(
+            "errorMessage",
+            "Not enough cash."
+          );
+
+          return;
+        }
+
+        player.cash -=
+          definition.cost;
+
+        player.powers.push(
+          power
+        );
+
+        addLog(
+          room,
+          player.name +
+            " bought " +
+            power +
+            "."
+        );
+
+        emitRoom(room);
       }
     );
-/* =====================================================
-   MAKE DEAL
-===================================================== */
 
-socket.on(
-  "makeDeal",
-  function (data) {
+    /* =====================================================
+       USE POWER
+    ===================================================== */
 
-    /*
-      Accept both the new frontend format
-      and the older server format.
-    */
+    socket.on(
+      "usePower",
+      function (data) {
+        const room =
+          findRoomByPlayerId(
+            socket.id
+          );
 
-    const targetId =
-      data &&
-      (
-        data.recipientId ||
-        data.targetId
-      );
-
-    let offer;
-    let request;
-
-    /*
-      NEW FORMAT
-      {
-        recipientId,
-        offer: {
-          type,
-          amount
-        },
-        request: {
-          type,
-          amount
+        if (!room) {
+          return;
         }
-      }
-    */
 
-    if (
-      data &&
-      data.offer &&
-      data.request
-    ) {
-
-      offer = {
-        type: data.offer.type
-      };
-
-      if (
-        data.offer.type === "money"
-      ) {
-        offer.amount =
-          Math.floor(
-            Number(
-              data.offer.amount
-            )
+        const player =
+          getPlayer(
+            room,
+            socket.id
           );
-      }
 
-      request = {
-        type: data.request.type
-      };
+        if (!player) {
+          return;
+        }
 
-      if (
-        data.request.type === "money"
-      ) {
-        request.amount =
-          Math.floor(
-            Number(
-              data.request.amount
-            )
-          );
-      }
-
-    }
-
-    /*
-      OLD FORMAT
-      {
-        targetId,
-        offerType,
-        offerAmount,
-        requestType,
-        requestAmount
-      }
-    */
-
-    else {
-
-      const offerType =
-        data &&
-        data.offerType;
-
-      const offerAmount =
-        Number(
+        const power =
           data &&
-          data.offerAmount
-        );
+          data.power;
 
-      const requestType =
-        data &&
-        data.requestType;
+        const result =
+          usePower(
+            room,
+            player,
+            power,
+            data || {}
+          );
 
-      const requestAmount =
-        Number(
+        if (
+          !result.success
+        ) {
+          socket.emit(
+            "errorMessage",
+            result.message
+          );
+
+          return;
+        }
+
+        if (
+          result.privateMessage
+        ) {
+          socket.emit(
+            "privateMessage",
+            result.privateMessage
+          );
+        }
+
+        emitRoom(room);
+      }
+    );
+
+    /* =====================================================
+       MAKE DEAL
+    ===================================================== */
+
+    socket.on(
+      "makeDeal",
+      function (data) {
+        const targetId =
           data &&
-          data.requestAmount
-        );
-
-      if (
-        offerType === "money"
-      ) {
-
-        offer = {
-          type: "money",
-          amount:
-            Math.floor(
-              offerAmount
-            )
-        };
-
-      } else {
-
-        offer = {
-          type: "protection"
-        };
-      }
-
-      if (
-        requestType === "money"
-      ) {
-
-        request = {
-          type: "money",
-          amount:
-            Math.floor(
-              requestAmount
-            )
-        };
-
-      } else if (
-        requestType === "protection"
-      ) {
-
-        request = {
-          type: "protection"
-        };
-
-      } else {
-
-        request = {
-          type: "nothing"
-        };
-      }
-    }
-
-    /*
-      Find the room containing
-      the player who made the proposal.
-    */
-
-    for (
-      const room
-      of rooms.values()
-    ) {
-
-      const proposer =
-        room.players.find(
-          function (p) {
-            return (
-              p.id ===
-              socket.id
-            );
-          }
-        );
-
-      if (!proposer) {
-        continue;
-      }
-
-      if (
-        !room.started ||
-        room.finished
-      ) {
-
-        socket.emit(
-          "errorMessage",
-          "You cannot make deals right now."
-        );
-
-        return;
-      }
-
-      const target =
-        getPlayer(
-          room,
-          targetId
-        );
-
-      if (
-        !target ||
-        !target.alive
-      ) {
-
-        socket.emit(
-          "errorMessage",
-          "That player is unavailable."
-        );
-
-        return;
-      }
-
-      if (
-        target.id ===
-        proposer.id
-      ) {
-
-        socket.emit(
-          "errorMessage",
-          "You cannot make a deal with yourself."
-        );
-
-        return;
-      }
-
-      /*
-        Validate money offer.
-      */
-
-      if (
-        offer.type === "money"
-      ) {
-
-        if (
-          !Number.isFinite(
-            offer.amount
-          ) ||
-          offer.amount <= 0
-        ) {
-
-          socket.emit(
-            "errorMessage",
-            "Enter a valid offer amount."
+          (
+            data.recipientId ||
+            data.targetId
           );
 
-          return;
-        }
+        let offer;
+        let request;
+
+        /*
+          NEW FRONTEND FORMAT
+        */
 
         if (
-          offer.amount >
-          proposer.cash
+          data &&
+          data.offer &&
+          data.request
         ) {
+          offer = {
+            type:
+              data.offer.type
+          };
 
-          socket.emit(
-            "errorMessage",
-            "You do not have enough cash."
-          );
-
-          return;
-        }
-      }
-
-      /*
-        Validate money request.
-      */
-
-      if (
-        request.type === "money"
-      ) {
-
-        if (
-          !Number.isFinite(
-            request.amount
-          ) ||
-          request.amount <= 0
-        ) {
-
-          socket.emit(
-            "errorMessage",
-            "Enter a valid requested amount."
-          );
-
-          return;
-        }
-      }
-
-      /*
-        Create the actual deal.
-      */
-
-      const deal =
-        createDeal(
-          room,
-          proposer.id,
-          target.id,
-          offer,
-          request
-        );
-
-      if (!deal) {
-
-        socket.emit(
-          "errorMessage",
-          "Unable to create that deal."
-        );
-
-        return;
-      }
-
-      emitRoom(room);
-
-      /*
-        If the target is an NPC,
-        give the NPC time to think.
-      */
-
-      if (
-        target.isNPC
-      ) {
-
-        setTimeout(
-          function () {
-
-            if (
-              room.finished ||
-              deal.status !==
-                "pending"
-            ) {
-              return;
-            }
-
-            const accepts =
-              npcDealAccepts(
-                room,
-                target,
-                deal
+          if (
+            data.offer.type ===
+            "money"
+          ) {
+            offer.amount =
+              Math.floor(
+                Number(
+                  data.offer.amount
+                )
               );
+          }
 
-            if (
-              accepts
-            ) {
+          request = {
+            type:
+              data.request.type
+          };
 
-              const result =
-                acceptDeal(
+          if (
+            data.request.type ===
+            "money"
+          ) {
+            request.amount =
+              Math.floor(
+                Number(
+                  data.request.amount
+                )
+              );
+          }
+        } else {
+          /*
+            OLD FORMAT FALLBACK
+          */
+
+          const offerType =
+            data &&
+            data.offerType;
+
+          const offerAmount =
+            Number(
+              data &&
+              data.offerAmount
+            );
+
+          const requestType =
+            data &&
+            data.requestType;
+
+          const requestAmount =
+            Number(
+              data &&
+              data.requestAmount
+            );
+
+          if (
+            offerType ===
+            "money"
+          ) {
+            offer = {
+              type:
+                "money",
+
+              amount:
+                Math.floor(
+                  offerAmount
+                )
+            };
+          } else {
+            offer = {
+              type:
+                "protection"
+            };
+          }
+
+          if (
+            requestType ===
+            "money"
+          ) {
+            request = {
+              type:
+                "money",
+
+              amount:
+                Math.floor(
+                  requestAmount
+                )
+            };
+          } else if (
+            requestType ===
+            "protection"
+          ) {
+            request = {
+              type:
+                "protection"
+            };
+          } else {
+            request = {
+              type:
+                "nothing"
+            };
+          }
+        }
+
+        const room =
+          findRoomByPlayerId(
+            socket.id
+          );
+
+        if (!room) {
+          return;
+        }
+
+        const proposer =
+          getPlayer(
+            room,
+            socket.id
+          );
+
+        if (!proposer) {
+          return;
+        }
+
+        if (
+          !room.started ||
+          room.finished
+        ) {
+          socket.emit(
+            "errorMessage",
+            "You cannot make deals right now."
+          );
+
+          return;
+        }
+
+        const target =
+          getPlayer(
+            room,
+            targetId
+          );
+
+        if (
+          !target ||
+          !target.alive
+        ) {
+          socket.emit(
+            "errorMessage",
+            "That player is unavailable."
+          );
+
+          return;
+        }
+
+        if (
+          target.id ===
+          proposer.id
+        ) {
+          socket.emit(
+            "errorMessage",
+            "You cannot make a deal with yourself."
+          );
+
+          return;
+        }
+
+        if (
+          !offer ||
+          !request
+        ) {
+          socket.emit(
+            "errorMessage",
+            "Invalid deal."
+          );
+
+          return;
+        }
+
+        if (
+          offer.type ===
+          "money"
+        ) {
+          if (
+            !Number.isFinite(
+              offer.amount
+            ) ||
+            offer.amount <=
+              0
+          ) {
+            socket.emit(
+              "errorMessage",
+              "Enter a valid offer amount."
+            );
+
+            return;
+          }
+
+          if (
+            offer.amount >
+            proposer.cash
+          ) {
+            socket.emit(
+              "errorMessage",
+              "You do not have enough cash."
+            );
+
+            return;
+          }
+        }
+
+        if (
+          request.type ===
+          "money"
+        ) {
+          if (
+            !Number.isFinite(
+              request.amount
+            ) ||
+            request.amount <=
+              0
+          ) {
+            socket.emit(
+              "errorMessage",
+              "Enter a valid requested amount."
+            );
+
+            return;
+          }
+        }
+
+        const deal =
+          createDeal(
+            room,
+            proposer.id,
+            target.id,
+            offer,
+            request
+          );
+
+        if (!deal) {
+          socket.emit(
+            "errorMessage",
+            "Unable to create that deal."
+          );
+
+          return;
+        }
+
+        emitRoom(room);
+
+        /*
+          NPC TARGET RESPONSE
+        */
+
+        if (
+          target.isNPC
+        ) {
+          setTimeout(
+            function () {
+              if (
+                room.finished ||
+                deal.status !==
+                  "pending"
+              ) {
+                return;
+              }
+
+              const accepts =
+                npcDealAccepts(
+                  room,
+                  target,
+                  deal
+                );
+
+              if (accepts) {
+                const result =
+                  acceptDeal(
+                    room,
+                    deal.id,
+                    target.id
+                  );
+
+                if (
+                  result.success
+                ) {
+                  addLog(
+                    room,
+                    "🤖 " +
+                      target.name +
+                      " accepted your deal."
+                  );
+                }
+              } else {
+                declineDeal(
                   room,
                   deal.id,
                   target.id
                 );
 
-              if (
-                result.success
-              ) {
-
                 addLog(
                   room,
                   "🤖 " +
                     target.name +
-                    " accepted your deal."
+                    " rejected your deal."
                 );
-
               }
 
-            } else {
-
-              declineDeal(
-                room,
-                deal.id,
-                target.id
-              );
-
-              addLog(
-                room,
-                "🤖 " +
-                  target.name +
-                  " rejected your deal."
-              );
-            }
-
-            emitRoom(room);
-
-          },
-          1200
-        );
+              emitRoom(room);
+            },
+            1200
+          );
+        }
       }
+    );
 
-      return;
-    }
-  }
-);
     /* =====================================================
        ACCEPT DEAL
     ===================================================== */
@@ -2577,46 +4248,35 @@ socket.on(
     socket.on(
       "acceptDeal",
       function (data) {
+        const room =
+          findRoomByPlayerId(
+            socket.id
+          );
 
-        const dealId =
-          data &&
-          data.dealId;
+        if (!room) {
+          return;
+        }
 
-        for (
-          const room
-          of rooms.values()
+        const result =
+          acceptDeal(
+            room,
+            data &&
+              data.dealId,
+            socket.id
+          );
+
+        if (
+          !result.success
         ) {
-
-          const player =
-            getPlayer(
-              room,
-              socket.id
-            );
-
-          if (!player) {
-            continue;
-          }
-
-          const result =
-            acceptDeal(
-              room,
-              dealId,
-              socket.id
-            );
-
-          if (!result.success) {
-            socket.emit(
-              "errorMessage",
-              result.message
-            );
-
-            return;
-          }
-
-          emitRoom(room);
+          socket.emit(
+            "errorMessage",
+            result.message
+          );
 
           return;
         }
+
+        emitRoom(room);
       }
     );
 
@@ -2627,50 +4287,37 @@ socket.on(
     socket.on(
       "declineDeal",
       function (data) {
-
-        const dealId =
-          data &&
-          data.dealId;
-
-        for (
-          const room
-          of rooms.values()
-        ) {
-
-          const player =
-            getPlayer(
-              room,
-              socket.id
-            );
-
-          if (!player) {
-            continue;
-          }
-
-          declineDeal(
-            room,
-            dealId,
+        const room =
+          findRoomByPlayerId(
             socket.id
           );
 
-          emitRoom(room);
-
+        if (!room) {
           return;
         }
+
+        declineDeal(
+          room,
+          data &&
+            data.dealId,
+          socket.id
+        );
+
+        emitRoom(room);
       }
     );
 
-    /* PLAY AGAIN */
+    /* =====================================================
+       PLAY AGAIN
+    ===================================================== */
 
     socket.on(
       "playAgain",
       function () {
-
         for (
           const room
           of rooms.values()
         ) {
-
           if (
             room.hostId !==
             socket.id
@@ -2682,63 +4329,40 @@ socket.on(
             createBoxes();
 
           room.goldenBox =
-            Math.floor(
-              Math.random() *
-              16
-            ) + 1;
+            crypto.randomInt(
+              1,
+              17
+            );
 
-          room.started = true;
+          room.started =
+            true;
 
           room.finished =
             false;
 
-          room.turnIndex = 0;
+          room.turnIndex =
+            0;
 
           room.currentTurn =
             room.players[0].id;
 
-          room.log = [];
+          room.forcedNextPlayerId =
+            null;
 
-          room.deals = [];
-          room.dealCounter = 0;
+          room.log =
+            [];
+
+          room.deals =
+            [];
+
+          room.dealCounter =
+            0;
 
           room.players.forEach(
             function (player) {
-
-              player.cash = 100;
-
-              player.alive = true;
-
-              player.powers = [];
-
-              player.protection =
-                false;
-
-              player.secondChance =
-                false;
-
-              player.objective =
-                randomItem(
-                  OBJECTIVES
-                );
-
-              player.objectiveComplete =
-                false;
-
-              player.boxesOpened =
-                0;
-
-              player.predictions =
-                [];
-
-              player.correctPredictions =
-                0;
-
-              player.dealsMade = 0;
-              player.dealsHonored = 0;
-              player.dealsBroken = 0;
-
-              player.relationships = {};
+              resetPlayer(
+                player
+              );
             }
           );
 
@@ -2766,12 +4390,13 @@ socket.on(
       }
     );
 
-    /* RESET ROOM */
+    /* =====================================================
+       RESET ROOM
+    ===================================================== */
 
     socket.on(
       "resetRoom",
       function () {
-
         for (
           const [
             code,
@@ -2779,13 +4404,13 @@ socket.on(
           ]
           of rooms.entries()
         ) {
-
           if (
             room.hostId ===
             socket.id
           ) {
-
-            rooms.delete(code);
+            rooms.delete(
+              code
+            );
 
             socket.emit(
               "resetComplete"
@@ -2797,12 +4422,13 @@ socket.on(
       }
     );
 
-    /* DISCONNECT */
+    /* =====================================================
+       DISCONNECT
+    ===================================================== */
 
     socket.on(
       "disconnect",
       function () {
-
         for (
           const [
             code,
@@ -2810,7 +4436,6 @@ socket.on(
           ]
           of rooms.entries()
         ) {
-
           const index =
             room.players.findIndex(
               function (player) {
@@ -2821,7 +4446,9 @@ socket.on(
               }
             );
 
-          if (index === -1) {
+          if (
+            index === -1
+          ) {
             continue;
           }
 
@@ -2832,9 +4459,16 @@ socket.on(
             room.mode ===
             "solo"
           ) {
-            rooms.delete(code);
+            rooms.delete(
+              code
+            );
+
             continue;
           }
+
+          const wasCurrentTurn =
+            room.currentTurn ===
+            socket.id;
 
           room.players.splice(
             index,
@@ -2842,21 +4476,43 @@ socket.on(
           );
 
           /*
-            Remove deals involving
-            the disconnected player.
+            Pending deals involving a
+            disconnected player expire.
+
+            Completed/history deals stay
+            in the room instead of being
+            silently erased.
           */
 
-          room.deals =
-            room.deals.filter(
-              function (deal) {
-                return (
-                  deal.proposerId !==
-                    socket.id &&
-                  deal.recipientId !==
+          room.deals.forEach(
+            function (deal) {
+              if (
+                (
+                  deal.proposerId ===
+                    socket.id ||
+                  deal.recipientId ===
                     socket.id
-                );
+                ) &&
+                (
+                  deal.status ===
+                    "pending" ||
+                  deal.status ===
+                    "accepted"
+                )
+              ) {
+                deal.status =
+                  "expired";
               }
-            );
+            }
+          );
+
+          if (
+            room.forcedNextPlayerId ===
+            socket.id
+          ) {
+            room.forcedNextPlayerId =
+              null;
+          }
 
           addLog(
             room,
@@ -2875,41 +4531,53 @@ socket.on(
           }
 
           if (
-            room.currentTurn ===
-              socket.id &&
-            room.players.length >
-              0
-          ) {
-
-            room.turnIndex =
-              Math.max(
-                0,
-                Math.min(
-                  room.turnIndex,
-                  room.players.length -
-                    1
-                )
-              );
-
-            const next =
-              room.players[
-                room.turnIndex
-              ];
-
-            if (next) {
-              room.currentTurn =
-                next.id;
-            }
-          }
-
-          emitRoom(room);
-
-          if (
             room.players.length ===
             0
           ) {
-            rooms.delete(code);
+            rooms.delete(
+              code
+            );
+
+            return;
           }
+
+          /*
+            Correctly skip dead players
+            if the current player left.
+          */
+
+          if (
+            wasCurrentTurn &&
+            room.started &&
+            !room.finished
+          ) {
+            room.turnIndex =
+              Math.max(
+                0,
+                index - 1
+              );
+
+            room.currentTurn =
+              room.players[
+                room.turnIndex
+              ].id;
+
+            if (
+              checkGameEnd(
+                room
+              )
+            ) {
+              return;
+            }
+
+            advanceTurn(
+              room
+            );
+
+            return;
+          }
+
+          emitRoom(room);
 
           return;
         }
